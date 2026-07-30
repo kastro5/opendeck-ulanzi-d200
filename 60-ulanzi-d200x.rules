@@ -1,0 +1,12 @@
+# Ulanzi D200X stream controller (VID 2207, PID 0019)
+#
+# Without this, /dev/hidraw* is root-only and the plugin cannot open the device.
+# TAG+="uaccess" hands an ACL to whoever is logged in at the local seat. This is
+# the same form OpenDeck ships for its own supported devices.
+#
+# Install:
+#   sudo cp 60-ulanzi-d200x.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# then unplug and replug the device.
+
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2207", ATTRS{idProduct}=="0019", MODE="0660", TAG+="uaccess"
