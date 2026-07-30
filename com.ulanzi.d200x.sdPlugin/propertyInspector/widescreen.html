@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<style>
+			:root {
+				color-scheme: light dark;
+				--fg: #2c2c2c;
+				--muted: #6b6b6b;
+				--bg: transparent;
+				--border: #c8c8c8;
+				--field: #ffffff;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--fg: #e6e6e6;
+					--muted: #9a9a9a;
+					--border: #4a4a4a;
+					--field: #2a2a2a;
+				}
+			}
+			body {
+				margin: 0;
+				padding: 12px;
+				background: var(--bg);
+				color: var(--fg);
+				font-family: ui-sans-serif, system-ui, sans-serif;
+				font-size: 13px;
+			}
+			.row {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				margin-bottom: 10px;
+			}
+			.row label {
+				flex: 0 0 auto;
+			}
+			select {
+				flex: 1 1 auto;
+				padding: 4px 6px;
+				color: var(--fg);
+				background: var(--field);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				font: inherit;
+			}
+			p {
+				margin: 0 0 8px;
+				color: var(--muted);
+				line-height: 1.45;
+			}
+			#warning {
+				display: none;
+				color: #d08b23;
+			}
+		</style>
+		<script>
+			const STRINGS = {
+				en: {
+					label: "Wide screen",
+					clock: "Clock (built into the device)",
+					stats: "System monitor (CPU / RAM / GPU)",
+					off: "Off (black)",
+					hint:
+						"Applies to the double-width screen at the bottom right, whether or not this " +
+						"action is on it. Drop any other action there instead and its icon is shown.",
+					warning:
+						"This action only does something on the Ulanzi D200X's bottom-right double key. " +
+						"The setting itself still applies.",
+				},
+				es: {
+					label: "Pantalla ancha",
+					clock: "Reloj (integrado en el dispositivo)",
+					stats: "Monitor del sistema (CPU / RAM / GPU)",
+					off: "Apagada (en negro)",
+					hint:
+						"Se aplica a la pantalla doble de abajo a la derecha, esté o no esta acción encima. " +
+						"Si pones cualquier otra acción ahí, se muestra su icono.",
+					warning:
+						"Esta acción solo hace algo en la tecla doble de abajo a la derecha de la Ulanzi D200X. " +
+						"El ajuste sí se aplica igualmente.",
+				},
+			};
+
+			const WIDE_ROW = 2;
+			const WIDE_COLUMN = 3;
+
+			function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+				const info = JSON.parse(inInfo);
+				const actionInfo = JSON.parse(inActionInfo);
+				const language = (info.application && info.application.language ? info.application.language : "en").slice(0, 2);
+				const strings = STRINGS[language] || STRINGS.en;
+
+				document.documentElement.lang = STRINGS[language] ? language : "en";
+				document.getElementById("label").textContent = strings.label;
+				document.getElementById("hint").textContent = strings.hint;
+				document.getElementById("warning").textContent = strings.warning;
+				for (const key of ["clock", "stats", "off"]) {
+					document.querySelector(`option[value="${key}"]`).textContent = strings[key];
+				}
+
+				const coordinates = actionInfo.payload.coordinates || {};
+				if (coordinates.row !== WIDE_ROW || coordinates.column !== WIDE_COLUMN) {
+					document.getElementById("warning").style.display = "block";
+				}
+
+				const mode = document.getElementById("mode");
+				let settings = {};
+
+				const websocket = new WebSocket("ws://localhost:" + inPort);
+				websocket.onopen = () => {
+					websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inPropertyInspectorUUID }));
+					websocket.send(JSON.stringify({ event: "getGlobalSettings", context: inPropertyInspectorUUID }));
+				};
+				websocket.onmessage = (message) => {
+					const data = JSON.parse(message.data);
+					if (data.event != "didReceiveGlobalSettings") return;
+					settings = (data.payload && data.payload.settings) || {};
+					mode.value = settings.wideMode || "clock";
+				};
+
+				mode.onchange = () => {
+					// Global, not per-instance: the wide screen has one mode whether
+					// or not this action happens to be sitting on it.
+					settings = Object.assign({}, settings, { wideMode: mode.value });
+					websocket.send(
+						JSON.stringify({
+							event: "setGlobalSettings",
+							context: inPropertyInspectorUUID,
+							payload: settings,
+						}),
+					);
+				};
+			}
+		</script>
+	</head>
+	<body>
+		<div class="row">
+			<label id="label" for="mode">Wide screen</label>
+			<select id="mode">
+				<option value="clock">Clock (built into the device)</option>
+				<option value="stats">System monitor (CPU / RAM / GPU)</option>
+				<option value="off">Off (black)</option>
+			</select>
+		</div>
+		<p id="hint"></p>
+		<p id="warning"></p>
+	</body>
+</html>

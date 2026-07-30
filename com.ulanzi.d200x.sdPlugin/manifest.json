@@ -2,12 +2,23 @@
 	"Name": "Ulanzi D200X",
 	"Description": "Device support for the Ulanzi D200X (14 LCD keys, 2 side buttons, 3 rotary encoders).",
 	"Author": "Ulanzi Deck Linux",
-	"Version": "1.0.0",
+	"Version": "1.1.0",
 	"Icon": "assets/icon",
 	"Category": "Ulanzi D200X",
 	"CategoryIcon": "assets/icon",
 	"URL": "https://github.com/",
-	"Actions": [],
+	"Actions": [
+		{
+			"UUID": "com.ulanzi.d200x.widescreen",
+			"Name": "Wide screen",
+			"Tooltip": "Choose what the double-width screen shows: clock, system monitor or nothing",
+			"Icon": "assets/widescreen",
+			"States": [{ "Image": "assets/widescreen", "ShowTitle": false }],
+			"Controllers": ["Keypad"],
+			"SupportedInMultiActions": false,
+			"PropertyInspectorPath": "propertyInspector/widescreen.html"
+		}
+	],
 	"OS": [
 		{ "Platform": "linux" }
 	],

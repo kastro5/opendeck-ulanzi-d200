@@ -26,11 +26,28 @@ pantalla fusionada ocupa el hueco 13 y el 14 se deja vacío a propósito.
 
 ### La pantalla doble (hueco 13)
 
-* **Vacía** → el firmware sigue pintando ahí su propio reloj.
-* **Con una acción encima** → el plugin cambia la pantalla a modo imagen y
-  renderiza el icono de la acción, con bandas negras para que no salga estirado.
+Lo que muestra esta pantalla es configurable. Pon encima la acción **Wide
+screen** del propio plugin y su inspector de propiedades te ofrece:
 
-En ambos casos la pantalla se puede pulsar y dispara `Keypad 13`.
+| Modo | Qué muestra la pantalla |
+|---|---|
+| **Reloj** (por defecto) | el reloj integrado en el dispositivo |
+| **Monitor del sistema** | los medidores de CPU / RAM / GPU del firmware |
+| **Apagada** | negro |
+
+El ajuste es global, no por tecla: se aplica a la pantalla ancha esté o no la
+acción encima, así que también decide qué se ve cuando el hueco 13 está
+**vacío**.
+
+Si pones ahí cualquier **otra** acción, la pantalla pasa a modo imagen y
+renderiza el icono de esa acción, con bandas negras para que no salga estirado.
+
+En todos los casos la pantalla se puede pulsar y dispara `Keypad 13`.
+
+El dispositivo no mide nada del equipo: el firmware dibuja los porcentajes que
+llevara la última actualización de estado. El plugin lee `/proc/stat` y
+`/proc/meminfo` para CPU y RAM, y `gpu_busy_percent` (amdgpu) o `nvidia-smi`
+para la GPU; si no hay ninguno de los dos, el medidor de GPU se queda a cero.
 
 ## Limitaciones estéticas
 
@@ -146,6 +163,17 @@ paquetes de 1024 bytes. Por eso el plugin:
 3. Reconstruye el paquete rellenando `dummy.txt` hasta que ningún byte `0x00` ni
    `0x7c` caiga en un límite de paquete: es un fallo de parseo del firmware con
    el que también topa el daemon original.
+
+Una página llena de teclas vivas (un reloj, un monitor del sistema) supone un
+paquete cada pocos segundos, y todo lo que el firmware repinte en ese momento
+parpadea. Por eso, cuando es el firmware quien dibuja la pantalla ancha (reloj o
+monitor del sistema), esa celda no lleva entrada en el manifiesto, y el modo
+solo se reenvía cuando cambia de verdad. Reenviarlo con un temporizador hace que
+el firmware repinte el reloj, y eso se ve como un parpadeo.
+
+El dispositivo lleva la hora por su cuenta, así que basta con ponérsela una vez
+al conectar. Lo único que hay que alimentar es el monitor del sistema, cada dos
+segundos.
 
 Los informes de entrada se decodifican en el mismo hilo HID y se reenvían como
 `keyDown` / `keyUp` / `encoderChange` / `encoderDown` / `encoderUp`.

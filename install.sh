@@ -101,6 +101,7 @@ if [[ "${1:-}" == "--link" ]]; then
 	echo "Linked $SRC -> $DEST"
 else
 	cp -r "$SRC" "$DEST"
+	find "$DEST" -name __pycache__ -prune -exec rm -rf {} +
 	echo "Installed to $DEST"
 fi
 

@@ -25,11 +25,28 @@ occupies slot 13 and slot 14 is left empty on purpose.
 
 ### The double-width screen (slot 13)
 
-* **Empty** → the firmware keeps drawing its own clock there.
-* **An action dropped on it** → the plugin switches the screen to image mode and
-  renders the action's icon, letterboxed so it is not stretched.
+What this screen shows is configurable. Drop the plugin's own **Wide screen**
+action on it and its property inspector offers:
+
+| Mode | What the screen shows |
+|---|---|
+| **Clock** (default) | the clock built into the device |
+| **System monitor** | the firmware's CPU / RAM / GPU gauges |
+| **Off** | black |
+
+The setting is global rather than per-key: it applies to the wide screen whether
+or not the action is sitting on it, so it also decides what an **empty** slot 13
+shows.
+
+Drop any **other** action there instead and the screen switches to image mode
+and renders that action's icon, letterboxed so it is not stretched.
 
 Either way the screen stays pressable and fires `Keypad 13`.
+
+The device does not measure the host: the firmware draws whatever percentages
+the last status update carried. The plugin samples `/proc/stat` and
+`/proc/meminfo` for CPU and RAM, and `gpu_busy_percent` (amdgpu) or `nvidia-smi`
+for the GPU — with neither available the GPU gauge stays at zero.
 
 ## Cosmetic limitations
 
@@ -141,6 +158,16 @@ packets. So the plugin:
    (`MIN_BUNDLE_INTERVAL`) so the firmware is not flooded.
 3. Rebuilds the bundle, padding `dummy.txt` until no `0x00`/`0x7c` byte lands on
    a packet boundary — a firmware parsing bug the original daemon hits too.
+
+A page full of live keys (a clock, a system monitor) means a bundle every few
+seconds, and anything the firmware repaints in that moment flickers. So when the
+firmware is the one drawing the wide screen — clock or system monitor — that
+cell gets no manifest entry at all, and the mode is only restated when it
+actually changes. Re-sending it on a timer makes the firmware repaint the clock,
+which reads as a blink.
+
+The device keeps time by itself, so seeding the clock once when it connects is
+enough. Only the system monitor needs feeding, every two seconds.
 
 Input reports are decoded on the same HID thread and forwarded as `keyDown` /
 `keyUp` / `encoderChange` / `encoderDown` / `encoderUp`.

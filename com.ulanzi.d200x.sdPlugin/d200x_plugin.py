@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import glob
 import hashlib
 import io
 import json
@@ -32,7 +33,9 @@ import logging
 import os
 import queue
 import random
+import shutil
 import struct
+import subprocess
 import sys
 import threading
 import time
@@ -82,6 +85,17 @@ WINDOW_MODE_STATS = 0
 WINDOW_MODE_CLOCK = 1
 WINDOW_MODE_IMAGE = 2
 
+# What the wide screen shows when no other action occupies it. Stored in the
+# plugin's global settings and edited from the "Wide screen" property inspector.
+ACTION_WIDE_SCREEN = "com.ulanzi.d200x.widescreen"
+WIDE_SETTING = "wideMode"
+WIDE_MODES = {
+    "clock": WINDOW_MODE_CLOCK,   # the firmware's own clock
+    "stats": WINDOW_MODE_STATS,   # the firmware's CPU/RAM/GPU gauges
+    "off": WINDOW_MODE_IMAGE,     # image mode fed a black icon
+}
+WIDE_DEFAULT = "clock"
+
 # --------------------------------------------------------------------------- #
 # OpenDeck device description
 # --------------------------------------------------------------------------- #
@@ -108,7 +122,8 @@ DIAL_BASE = 17                      # hardware index of encoder 0
 
 FLUSH_DEBOUNCE = 0.35    # coalesce a burst of setImage events into one bundle
 MIN_BUNDLE_INTERVAL = 1.5  # never push ZIP bundles faster than this
-CLOCK_INTERVAL = 2.0     # small-window refresh
+CLOCK_INTERVAL = 2.0     # how often the CPU/RAM/GPU gauges are refreshed
+GPU_INTERVAL = 5.0       # GPU utilisation is the expensive one to sample
 RECONNECT_GRACE = 30.0   # tolerate this long of HID absence before deregistering
 HID_POLL = 0.005
 
@@ -199,13 +214,19 @@ def blank_icon() -> bytes:
     return out.getvalue()
 
 
-def build_bundle(icons: Dict[int, bytes]) -> bytes:
+def build_bundle(icons: Dict[int, bytes], omit: Optional[frozenset] = None) -> bytes:
     """Pack icons + manifest into the ZIP bundle the firmware expects.
+
+    Cells listed in ``omit`` get no manifest entry at all. A cell that is named
+    in the manifest is repainted when the bundle lands, so the wide screen is
+    left out whenever the firmware is the one drawing it -- otherwise every
+    push flashes the icon underneath for as long as the repaint takes.
 
     The firmware chokes on 0x00/0x7c bytes landing on a 1024-byte packet
     boundary, so the bundle is rebuilt with differently sized padding until the
     layout is clean.
     """
+    omit = omit or frozenset()
     data = b""
     for attempt in range(31):
         padding = "init" if attempt == 0 else "".join(
@@ -220,6 +241,8 @@ def build_bundle(icons: Dict[int, bytes]) -> bytes:
             manifest: Dict[str, dict] = {}
             written: Dict[str, bool] = {}
             for index in SCREEN_KEYS:
+                if index in omit:
+                    continue
                 entry = {"State": 0, "ViewParam": [{"Text": ""}]}
                 png = icons.get(index)
                 if png:
@@ -241,6 +264,94 @@ def build_bundle(icons: Dict[int, bytes]) -> bytes:
 
     logger.warning("No clean bundle layout after 30 attempts; sending anyway")
     return data
+
+
+# --------------------------------------------------------------------------- #
+# System statistics
+# --------------------------------------------------------------------------- #
+
+class SystemStats:
+    """CPU / RAM / GPU utilisation, read straight from /proc and /sys.
+
+    The firmware has no way of measuring the host, so the three percentages it
+    draws on the status screen are whatever the last SET_SMALL_WINDOW command
+    carried -- send zeroes and the gauges sit at zero.
+    """
+
+    def __init__(self) -> None:
+        self._cpu_prev: Optional[Tuple[int, int]] = None
+        self._gpu_nodes = sorted(glob.glob("/sys/class/drm/card*/device/gpu_busy_percent"))
+        self._nvidia = None if self._gpu_nodes else shutil.which("nvidia-smi")
+        self._gpu_value = 0
+        self._gpu_read = 0.0
+
+    def read(self) -> Tuple[int, int, int]:
+        return self._cpu(), self._memory(), self._gpu()
+
+    def _cpu(self) -> int:
+        try:
+            with open("/proc/stat") as handle:
+                fields = [int(value) for value in handle.readline().split()[1:]]
+        except (OSError, ValueError):
+            return 0
+        if len(fields) < 5:
+            return 0
+
+        idle = fields[3] + fields[4]  # idle + iowait
+        total = sum(fields)
+        previous, self._cpu_prev = self._cpu_prev, (idle, total)
+        if previous is None:
+            return 0
+
+        total_delta = total - previous[1]
+        if total_delta <= 0:
+            return 0
+        busy = total_delta - (idle - previous[0])
+        return max(0, min(100, round(100 * busy / total_delta)))
+
+    def _memory(self) -> int:
+        values: Dict[str, int] = {}
+        try:
+            with open("/proc/meminfo") as handle:
+                for line in handle:
+                    key, _, rest = line.partition(":")
+                    if key in ("MemTotal", "MemAvailable"):
+                        values[key] = int(rest.split()[0])
+                        if len(values) == 2:
+                            break
+        except (OSError, ValueError):
+            return 0
+
+        total = values.get("MemTotal", 0)
+        if total <= 0:
+            return 0
+        return max(0, min(100, round(100 * (total - values.get("MemAvailable", 0)) / total)))
+
+    def _gpu(self) -> int:
+        now = time.monotonic()
+        if now - self._gpu_read < GPU_INTERVAL:
+            return self._gpu_value
+        self._gpu_read = now
+
+        for node in self._gpu_nodes:  # amdgpu exposes this directly
+            try:
+                with open(node) as handle:
+                    self._gpu_value = max(0, min(100, int(handle.read().strip())))
+                return self._gpu_value
+            except (OSError, ValueError):
+                continue
+
+        if self._nvidia:
+            try:
+                result = subprocess.run(
+                    [self._nvidia, "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=2, check=True)
+                self._gpu_value = max(0, min(100, int(result.stdout.split()[0])))
+            except Exception:
+                # Don't keep paying for a query that does not work.
+                self._nvidia = None
+                self._gpu_value = 0
+        return self._gpu_value
 
 
 # --------------------------------------------------------------------------- #
@@ -388,6 +499,11 @@ class D200XPlugin:
         self._last_bundle = 0.0
         self._registered = False
         self._window_mode = WINDOW_MODE_CLOCK
+        self._wide_setting = WIDE_DEFAULT
+        self._settings_seen = False
+        self._wide_contexts: set = set()   # our own action sitting on the wide key
+        self._stats = SystemStats()
+        self._stats_cache: Tuple[int, int, int] = (0, 0, 0)
 
     # -- websocket ---------------------------------------------------------- #
 
@@ -417,6 +533,7 @@ class D200XPlugin:
                 self._ws = ws
                 await self._send({"event": self._register_event, "uuid": self._uuid})
                 logger.info("Registered plugin %s on port %d", self._uuid, self._port)
+                await self._send({"event": "getGlobalSettings", "context": self._uuid})
 
                 # Only now may the HID worker report a connection: registerDevice
                 # has nowhere to go before the socket is up.
@@ -492,10 +609,46 @@ class D200XPlugin:
             brightness = max(0, min(100, int(message.get("brightness", 100))))
             self._hid.submit("command", CMD_SET_BRIGHTNESS, str(brightness).encode("ascii"))
             logger.debug("Brightness -> %d", brightness)
-        elif event in ("deviceDidConnect", "deviceDidDisconnect", "didReceiveGlobalSettings"):
+        elif event == "didReceiveGlobalSettings":
+            self._on_global_settings((message.get("payload") or {}).get("settings") or {})
+        elif event in ("willAppear", "willDisappear"):
+            self._on_appearance(event, message)
+        elif event in ("deviceDidConnect", "deviceDidDisconnect"):
             pass
         else:
             logger.debug("Ignoring event %s", event)
+
+    def _on_global_settings(self, settings: dict) -> None:
+        mode = str(settings.get(WIDE_SETTING, WIDE_DEFAULT)).lower()
+        if mode not in WIDE_MODES:
+            mode = WIDE_DEFAULT
+        if mode == self._wide_setting and self._settings_seen:
+            return
+        self._settings_seen = True
+        self._wide_setting = mode
+        logger.info("Wide screen: %s", mode)
+        self._apply_wide_mode()
+
+    def _on_appearance(self, event: str, message: dict) -> None:
+        """Track our own 'Wide screen' action so its icon does not fight the mode."""
+        if message.get("action") != ACTION_WIDE_SCREEN or message.get("device") != DEVICE_ID:
+            return
+
+        payload = message.get("payload") or {}
+        coordinates = payload.get("coordinates") or {}
+        if payload.get("controller", "Keypad") != "Keypad":
+            return
+        if coordinates.get("row", 0) * COLUMNS + coordinates.get("column", 0) != WIDE_KEY:
+            return
+
+        context = json.dumps(message.get("context"), sort_keys=True)
+        if event == "willAppear":
+            self._wide_contexts.add(context)
+        else:
+            self._wide_contexts.discard(context)
+        logger.info("Wide screen action %s (%s)",
+                    "placed" if event == "willAppear" else "removed", self._wide_setting)
+        self._apply_wide_mode()
 
     def _on_set_image(self, message: dict) -> None:
         if message.get("device") not in (None, DEVICE_ID):
@@ -581,20 +734,25 @@ class D200XPlugin:
 
         icons = {index: self._icons.get(index, self._blank) for index in SCREEN_KEYS}
 
-        # In clock mode the firmware owns the wide screen, so leave it alone
-        # until OpenDeck actually has something to show there.
-        mode = WINDOW_MODE_IMAGE if WIDE_KEY in self._icons else WINDOW_MODE_CLOCK
+        mode = self._wide_mode()
         if mode != self._window_mode:
             self._window_mode = mode
             self._push_window_mode()
 
+        # In clock and stats mode the firmware draws the wide screen itself, so
+        # keep that cell out of the bundle entirely: naming it would repaint it
+        # on every push, which reads as a flicker. "Off" is image mode fed a
+        # black icon, so it stays in.
+        omit = frozenset() if mode == WINDOW_MODE_IMAGE else frozenset({WIDE_KEY})
+
         signature = hashlib.sha1(
-            b"".join(hashlib.sha1(icons[i]).digest() for i in SCREEN_KEYS)
+            b"".join(hashlib.sha1(icons[i]).digest() for i in SCREEN_KEYS if i not in omit)
+            + repr(sorted(omit)).encode()
         ).hexdigest()
         if signature == self._sent_signature:
             return
 
-        bundle = await asyncio.to_thread(build_bundle, icons)
+        bundle = await asyncio.to_thread(build_bundle, icons, omit)
         self._sent_signature = signature
         self._last_bundle = time.monotonic()
         self._hid.submit("bundle", bundle)
@@ -602,15 +760,36 @@ class D200XPlugin:
 
     # -- small window ------------------------------------------------------- #
 
+    def _wide_shows_action(self) -> bool:
+        """True when the wide screen is displaying another action's icon."""
+        return WIDE_KEY in self._icons and not self._wide_contexts
+
+    def _wide_mode(self) -> int:
+        if self._wide_shows_action():
+            return WINDOW_MODE_IMAGE
+        return WIDE_MODES[self._wide_setting]
+
+    def _apply_wide_mode(self) -> None:
+        mode = self._wide_mode()
+        if mode != self._window_mode:
+            self._window_mode = mode
+            self._push_window_mode()
+        self._schedule_flush()
+
     def _push_window_mode(self) -> None:
-        payload = f"{self._window_mode}|0|0|{time.strftime('%H:%M:%S')}|0"
+        cpu, memory, gpu = self._stats_cache
+        payload = f"{self._window_mode}|{cpu}|{memory}|{time.strftime('%H:%M:%S')}|{gpu}"
         self._hid.submit("command", CMD_SET_SMALL_WINDOW, payload.encode("utf-8"))
 
     async def _clock_loop(self) -> None:
         while True:
             await asyncio.sleep(CLOCK_INTERVAL)
-            if self._registered:
-                self._push_window_mode()
+            if not self._registered or self._window_mode != WINDOW_MODE_STATS:
+                # Only the gauges need feeding. Restating clock or image mode
+                # just makes the firmware repaint the screen, which blinks.
+                continue
+            self._stats_cache = await asyncio.to_thread(self._stats.read)
+            self._push_window_mode()
 
 
 # --------------------------------------------------------------------------- #
