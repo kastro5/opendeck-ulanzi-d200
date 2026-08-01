@@ -23,6 +23,7 @@ Remote: `git@github.com:edubox/opendeck-ulanzi-d200x.git`, branch `main`.
 ```
 ├── README.md / README.es.md          kept 1:1, English + Spain Spanish
 ├── CHANGELOG.md / CHANGELOG.es.md    same pairing
+├── CLAUDE.md                         project memory; AGENTS.md is a symlink to it so opencode loads the same source
 ├── install.sh                        copies into the running OpenDeck's plugin dir
 ├── 60-ulanzi-d200x.rules             single udev rule, uaccess
 └── com.ulanzi.d200x.sdPlugin/
@@ -164,7 +165,10 @@ clean system — no prior D200 tooling installed.
    live keys a bundle goes out every few seconds, so in clock/stats mode key 13
    gets no manifest entry (`build_bundle(..., omit=)`) and the mode command is
    sent only when the mode changes; the 2 s timer only feeds the gauges in stats
-   mode.
+   mode. **But the cell still has to be blanked once** (`_wide_blanked`): the
+   firmware draws over that cell without clearing it, so a cell nobody paints
+   keeps showing whatever is behind — the boot logo after a power cut, or the
+   icon of an action that used to be there. Once at connect, never on a push.
 6. **A plugin's only settings UI is an action's property inspector.** OpenDeck
    has no plugin-level settings page; `HasSettingsInterface` merely sends the
    plugin a `showSettingsInterface` event that it must handle by drawing its own
@@ -176,15 +180,18 @@ clean system — no prior D200 tooling installed.
 
 ## Subagents
 
-Defined in `~/.claude/agents/` (user level, so they exist in every project).
-Spawn them only when asked to.
+Five task-specific subagents, mirrored for both tools so either can drive the
+same workflow. Spawn them only when asked to.
 
-| Agent | Model | Use it for |
+- **Claude Code:** `~/.claude/agents/*.md` — tiers map to `haiku` / `sonnet` /
+  `opus`. Session default is `opus` with `effortLevel: high`.
+- **opencode:** `~/.config/opencode/agents/*.md` — same five agents under the
+  GLM family: `glm-5-turbo` / `glm-4.7` / `glm-5.2`.
+
+| Agent | Tier | Use it for |
 |---|---|---|
-| `scout` | haiku | "where does X live", read-only sweeps, path lists |
-| `implementer` | sonnet | a change that is already decided; mechanical refactors; tests |
-| `doc-writer` | sonnet | READMEs and the EN/ES pair |
-| `deep-debugger` | opus | unknown causes, timing/USB/protocol weirdness, design trade-offs |
-| `reviewer` | opus | reviewing a diff before commit; reports, does not fix |
-
-The session default is `opus` with `effortLevel: high` (`~/.claude/settings.json`).
+| `scout` | fast | "where does X live", read-only sweeps, path lists |
+| `implementer` | mid | a change that is already decided; mechanical refactors; tests |
+| `doc-writer` | mid | READMEs and the EN/ES pair |
+| `deep-debugger` | strong | unknown causes, timing/USB/protocol weirdness, design trade-offs |
+| `reviewer` | strong | reviewing a diff before commit; reports, does not fix |
