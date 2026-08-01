@@ -2,6 +2,33 @@
 
 # Changelog
 
+## 1.1.2 — 2026-08-01
+
+### Fixed
+
+- **Occasional flicker of the whole device.** The firmware mis-parses a bundle
+  when a `0x00` or `0x7c` byte lands on a 1024-byte packet boundary, so the
+  bundle is rebuilt with different padding until the layout is clean — but it
+  gave up after 31 tries and sent the malformed bundle anyway. A page with live
+  keys bundles ~217 KiB, which puts ~216 bytes on a boundary and leaves barely
+  8% of layouts clean, so roughly one push in thirteen went out malformed: with
+  a bundle every three seconds, a visible glitch about once a minute. The
+  search now runs up to 200 tries, which costs nothing in the common case
+  (about twelve tries are needed) and makes giving up vanishingly unlikely.
+
+## 1.1.1 — 2026-08-01
+
+### Fixed
+
+- **The wide screen kept whatever was behind the clock.** The firmware draws the
+  clock and the gauges over that cell instead of clearing it first, and 1.1.0
+  stopped naming the cell in the bundle in order to kill the flicker — so
+  nothing was clearing it either. After the device had been unplugged from the
+  mains its boot logo stayed visible behind the time; the icon of an action that
+  used to sit on the key did the same. The plugin now lays down a black
+  background the first time it takes the cell over, and goes back to leaving it
+  alone afterwards, so the flicker does not come back.
+
 ## 1.1.0 — 2026-07-31
 
 ### Added

@@ -2,6 +2,35 @@
 
 # Registro de cambios
 
+## 1.1.2 — 2026-08-01
+
+### Arreglado
+
+- **Parpadeo ocasional de todo el dispositivo.** El firmware interpreta mal un
+  paquete cuando un byte `0x00` o `0x7c` cae en un límite de 1024 bytes, así que
+  el paquete se reconstruye con rellenos distintos hasta que el reparto sale
+  limpio; pero se rendía tras 31 intentos y lo enviaba igualmente mal formado.
+  Una página con teclas vivas genera unos 217 KiB, lo que deja ~216 bytes en un
+  límite y apenas un 8 % de repartos limpios, de modo que aproximadamente uno de
+  cada trece envíos salía mal formado: con un paquete cada tres segundos, un
+  fallo visible más o menos cada minuto. La búsqueda llega ahora a 200 intentos,
+  lo que no cuesta nada en el caso normal (hacen falta unos doce) y hace que
+  rendirse sea prácticamente imposible.
+
+## 1.1.1 — 2026-08-01
+
+### Arreglado
+
+- **La pantalla ancha conservaba lo que hubiera detrás del reloj.** El firmware
+  dibuja el reloj y los medidores encima de esa celda en lugar de limpiarla
+  antes, y la 1.1.0 dejó de nombrarla en el paquete para acabar con el
+  parpadeo, así que tampoco la limpiaba nadie más. Si el dispositivo se había
+  quedado sin corriente, su logo de arranque seguía viéndose por debajo de la
+  hora; con el icono de una acción que hubiera estado en esa tecla pasaba lo
+  mismo. Ahora el plugin pinta un fondo negro la primera vez que se hace cargo
+  de la celda y después vuelve a no tocarla, de modo que el parpadeo no
+  reaparece.
+
 ## 1.1.0 — 2026-07-31
 
 ### Añadido

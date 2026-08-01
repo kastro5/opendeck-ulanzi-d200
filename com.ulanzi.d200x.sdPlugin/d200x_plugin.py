@@ -80,6 +80,13 @@ CMD_IN_BUTTON_ALT = 0x0102
 ICON_SIZE = 196          # native icon resolution of a single screen
 WIDE_ICON_WIDTH = 392    # the double-width screen is squeezed from 392 -> 196
 
+# How many paddings to try before giving up on a clean bundle layout. A live
+# page bundles ~217 KiB, which puts ~216 bytes on a packet boundary, and each
+# has to dodge two values out of 256 -- so barely 8% of layouts come out clean
+# and 31 tries left one push in thirteen going out malformed. A try costs a few
+# milliseconds and the expected count is unchanged (~12); only the tail moves.
+BUNDLE_LAYOUT_ATTEMPTS = 200
+
 # Small-window (double-width screen) modes understood by the firmware.
 WINDOW_MODE_STATS = 0
 WINDOW_MODE_CLOCK = 1
@@ -228,7 +235,7 @@ def build_bundle(icons: Dict[int, bytes], omit: Optional[frozenset] = None) -> b
     """
     omit = omit or frozenset()
     data = b""
-    for attempt in range(31):
+    for attempt in range(BUNDLE_LAYOUT_ATTEMPTS):
         padding = "init" if attempt == 0 else "".join(
             random.choices("abcdefghijklmnopqrstuvwxyz", k=8 + attempt * 8)
         )
@@ -262,7 +269,8 @@ def build_bundle(icons: Dict[int, bytes], omit: Optional[frozenset] = None) -> b
         if not any(data[i:i + 1] in (b"\x00", b"\x7c") for i in range(CHUNK_DATA, len(data), PACKET_SIZE)):
             return data
 
-    logger.warning("No clean bundle layout after 30 attempts; sending anyway")
+    logger.warning("No clean bundle layout after %d attempts; sending anyway",
+                   BUNDLE_LAYOUT_ATTEMPTS)
     return data
 
 
@@ -501,6 +509,7 @@ class D200XPlugin:
         self._window_mode = WINDOW_MODE_CLOCK
         self._wide_setting = WIDE_DEFAULT
         self._settings_seen = False
+        self._wide_blanked = False         # is our black background in the wide cell?
         self._wide_contexts: set = set()   # our own action sitting on the wide key
         self._stats = SystemStats()
         self._stats_cache: Tuple[int, int, int] = (0, 0, 0)
@@ -570,6 +579,12 @@ class D200XPlugin:
         })
         self._registered = True
         logger.info("Registered device %s with OpenDeck", DEVICE_ID)
+
+        # A device that has just been powered up is showing its boot logo, and
+        # one that was merely replugged is showing whatever it had before. Either
+        # way we no longer know what is in the wide cell, so the next bundle has
+        # to repaint it.
+        self._wide_blanked = False
 
         # OpenDeck bakes titles into the images it renders, so the firmware must
         # not draw labels of its own on top.
@@ -745,6 +760,17 @@ class D200XPlugin:
         # black icon, so it stays in.
         omit = frozenset() if mode == WINDOW_MODE_IMAGE else frozenset({WIDE_KEY})
 
+        # The firmware draws the clock and the gauges *over* the wide cell rather
+        # than clearing it first, and a cell left out of the bundle is painted by
+        # nobody else, so whatever was there shows through from behind: the boot
+        # logo after the device has been off the mains, or the icon of an action
+        # that used to sit on the key. Lay down a black background the first time
+        # we take the cell over, then go back to omitting it -- one repaint at
+        # connect costs nothing, one on every push is the flicker we just fixed.
+        if omit and not self._wide_blanked:
+            omit = frozenset()
+            icons[WIDE_KEY] = self._blank
+
         signature = hashlib.sha1(
             b"".join(hashlib.sha1(icons[i]).digest() for i in SCREEN_KEYS if i not in omit)
             + repr(sorted(omit)).encode()
@@ -756,7 +782,13 @@ class D200XPlugin:
         self._sent_signature = signature
         self._last_bundle = time.monotonic()
         self._hid.submit("bundle", bundle)
-        logger.info("Pushed icon bundle (%d icons, %.1f KiB)", len(self._icons), len(bundle) / 1024)
+        if WIDE_KEY not in omit:
+            # This bundle paints the wide cell, so its background stops being a
+            # guess: black if that is what went out, an icon otherwise -- and an
+            # icon has to be cleared again once the firmware takes the cell back.
+            self._wide_blanked = icons[WIDE_KEY] == self._blank
+        logger.info("Pushed icon bundle (%d icons, %.1f KiB%s)", len(self._icons), len(bundle) / 1024,
+                    "" if WIDE_KEY in omit else ", wide cell repainted")
 
     # -- small window ------------------------------------------------------- #
 
