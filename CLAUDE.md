@@ -169,6 +169,11 @@ clean system — no prior D200 tooling installed.
    firmware draws over that cell without clearing it, so a cell nobody paints
    keeps showing whatever is behind — the boot logo after a power cut, or the
    icon of an action that used to be there. Once at connect, never on a push.
+   **And a bundle that names the cell drops the firmware out of clock/stats
+   mode**, back to its default gauges frozen at whatever the last
+   `SET_SMALL_WINDOW` carried — so the mode has to be restated behind any bundle
+   that paints it. Sending it only on a mode *change* is not enough: at connect
+   the mode already matches, so nothing gets sent and the blanking bundle wins.
 6. **A plugin's only settings UI is an action's property inspector.** OpenDeck
    has no plugin-level settings page; `HasSettingsInterface` merely sends the
    plugin a `showSettingsInterface` event that it must handle by drawing its own

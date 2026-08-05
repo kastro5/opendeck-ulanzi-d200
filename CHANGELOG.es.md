@@ -2,6 +2,21 @@
 
 # Registro de cambios
 
+## 1.1.3 — 2026-08-05
+
+### Arreglado
+
+- **La pantalla ancha arrancaba como un monitor del sistema congelado.** Con el
+  reloj seleccionado, el dispositivo empezaba en su pantalla por defecto —los
+  medidores, clavados a cero— hasta que se cambiaba el ajuste y se volvía a
+  poner. El fondo negro que la 1.1.2 pinta al conectar es un paquete que nombra
+  la celda ancha, y pintar esa celda saca al firmware del modo reloj y del modo
+  monitor; el modo solo se enviaba cuando *cambiaba*, así que nadie lo volvía a
+  poner, y los ceros eran los que llevaba aquel único comando. Ahora el modo se
+  reafirma detrás de cualquier paquete que pinte la celda.
+- El modo de la pantalla ancha aparece ya en el log del plugin, que hasta ahora
+  no decía nada de él.
+
 ## 1.1.2 — 2026-08-01
 
 ### Arreglado

@@ -2,7 +2,7 @@
 	"Name": "Ulanzi D200X",
 	"Description": "Device support for the Ulanzi D200X (14 LCD keys, 2 side buttons, 3 rotary encoders).",
 	"Author": "Ulanzi Deck Linux",
-	"Version": "1.1.2",
+	"Version": "1.1.3",
 	"Icon": "assets/icon",
 	"Category": "Ulanzi D200X",
 	"CategoryIcon": "assets/icon",

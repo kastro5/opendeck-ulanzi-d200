@@ -507,6 +507,7 @@ class D200XPlugin:
         self._last_bundle = 0.0
         self._registered = False
         self._window_mode = WINDOW_MODE_CLOCK
+        self._window_mode_sent: Optional[int] = None
         self._wide_setting = WIDE_DEFAULT
         self._settings_seen = False
         self._wide_blanked = False         # is our black background in the wide cell?
@@ -596,7 +597,7 @@ class D200XPlugin:
             "Size": 10,
             "Weight": 80,
         }).encode("utf-8"))
-        self._push_window_mode()
+        self._push_window_mode("device connected")
 
         if self._icons:
             # Re-arm the cached bundle rather than asking OpenDeck to re-render:
@@ -782,13 +783,20 @@ class D200XPlugin:
         self._sent_signature = signature
         self._last_bundle = time.monotonic()
         self._hid.submit("bundle", bundle)
+        logger.info("Pushed icon bundle (%d icons, %.1f KiB%s)", len(self._icons), len(bundle) / 1024,
+                    "" if WIDE_KEY in omit else ", wide cell repainted")
         if WIDE_KEY not in omit:
             # This bundle paints the wide cell, so its background stops being a
             # guess: black if that is what went out, an icon otherwise -- and an
             # icon has to be cleared again once the firmware takes the cell back.
             self._wide_blanked = icons[WIDE_KEY] == self._blank
-        logger.info("Pushed icon bundle (%d icons, %.1f KiB%s)", len(self._icons), len(bundle) / 1024,
-                    "" if WIDE_KEY in omit else ", wide cell repainted")
+            if mode != WINDOW_MODE_IMAGE:
+                # Painting the cell drops the firmware out of clock and stats
+                # mode, and _apply_wide_mode will not restate a mode it believes
+                # is already set, so the device would sit on its own default
+                # screen -- the gauges, frozen at whatever the last command
+                # carried. Restate it behind the bundle; the queue is FIFO.
+                self._push_window_mode("wide cell repainted")
 
     # -- small window ------------------------------------------------------- #
 
@@ -808,10 +816,18 @@ class D200XPlugin:
             self._push_window_mode()
         self._schedule_flush()
 
-    def _push_window_mode(self) -> None:
+    def _push_window_mode(self, note: str = "") -> None:
         cpu, memory, gpu = self._stats_cache
         payload = f"{self._window_mode}|{cpu}|{memory}|{time.strftime('%H:%M:%S')}|{gpu}"
         self._hid.submit("command", CMD_SET_SMALL_WINDOW, payload.encode("utf-8"))
+        # Worth a line whenever the mode itself is at stake: a mode command that
+        # never lands leaves the wide screen on a display nobody asked for, and
+        # without this the log says nothing about it. The gauge refresh restates
+        # the same mode twice a second-ish and stays quiet.
+        if note or self._window_mode != self._window_mode_sent:
+            logger.info("Small window mode %d%s", self._window_mode,
+                        f" ({note})" if note else "")
+        self._window_mode_sent = self._window_mode
 
     async def _clock_loop(self) -> None:
         while True:

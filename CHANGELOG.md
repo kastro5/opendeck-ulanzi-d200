@@ -2,6 +2,21 @@
 
 # Changelog
 
+## 1.1.3 — 2026-08-05
+
+### Fixed
+
+- **The wide screen came up as a frozen system monitor.** With the clock
+  selected, the device started on its own default screen — the gauges, stuck at
+  zero — until the setting was changed and changed back. The black background
+  1.1.2 lays down at connect is a bundle that names the wide cell, and painting
+  that cell drops the firmware out of clock and stats mode; the mode was only
+  ever sent when it *changed*, so nothing put it back, and the zeros were
+  whatever that one command had carried. The mode is now restated behind any
+  bundle that paints the cell.
+- The wide screen mode now appears in the plugin log, which said nothing about
+  it before.
+
 ## 1.1.2 — 2026-08-01
 
 ### Fixed
