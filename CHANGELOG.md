@@ -2,6 +2,16 @@
 
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Explicit device layout** for OpenDeck builds that support it
+  ([nekename/OpenDeck#359](https://github.com/nekename/OpenDeck/pull/359),
+  `layoutVersion` 1): the wide screen is described as one key spanning two
+  cells, and the D200X's side buttons at half height. Stock OpenDeck ignores the
+  extra fields and keeps drawing the plain grid.
+
 ## 1.2.2 — 2026-10-14
 
 ### Changed

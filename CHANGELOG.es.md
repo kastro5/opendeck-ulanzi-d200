@@ -2,6 +2,16 @@
 
 # Registro de cambios
 
+## Sin publicar
+
+### Añadido
+
+- **Distribución explícita del dispositivo** para las versiones de OpenDeck que
+  la admiten ([nekename/OpenDeck#359](https://github.com/nekename/OpenDeck/pull/359),
+  `layoutVersion` 1): la pantalla ancha se describe como una sola tecla que
+  ocupa dos celdas, y los botones laterales de la D200X a media altura. OpenDeck
+  sin modificar ignora estos campos y sigue dibujando la cuadrícula normal.
+
 ## 1.2.2 — 2026-10-14
 
 ### Cambiado

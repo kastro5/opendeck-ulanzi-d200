@@ -147,6 +147,68 @@ MODELS = {
     "d200h": Model("ulanzi-d200h", "Ulanzi D200H", 0, 0),
 }
 MODEL_SETTING = "model"
+
+# Explicit layout for OpenDeck builds that accept one (nekename/OpenDeck#359,
+# layoutVersion 1), so the wide screen is drawn as one key spanning both cells.
+# Stock OpenDeck ignores these fields and keeps drawing the rows x columns grid.
+# Metrics match OpenDeck's legacy grid: 112 px keys on a 132 px pitch.
+LAYOUT_VERSION = 1
+LAYOUT_KEY = 112
+LAYOUT_PITCH = 132
+LAYOUT_MARGIN = 10
+
+
+def build_layout(model: "Model") -> dict:
+    def at(column: float, row: float) -> Tuple[int, int]:
+        return (LAYOUT_MARGIN + round(column * LAYOUT_PITCH),
+                LAYOUT_MARGIN + round(row * LAYOUT_PITCH))
+
+    def rect(controller: str, position: int, x: int, y: int, width: int, height: int,
+             surface: Optional[str] = None) -> dict:
+        control = {"controller": controller, "position": position, "shape": "rect",
+                   "x": x, "y": y, "width": width, "height": height}
+        if surface:
+            control["surface"] = surface
+        return control
+
+    controls = []
+    for index in SCREEN_KEYS:
+        x, y = at(index % COLUMNS, index // COLUMNS)
+        span = 2 if index == WIDE_KEY else 1
+        controls.append(rect("Keypad", index, x, y,
+                             LAYOUT_KEY + (span - 1) * LAYOUT_PITCH, LAYOUT_KEY, "screen"))
+
+    grid_width = COLUMNS * LAYOUT_PITCH - (LAYOUT_PITCH - LAYOUT_KEY)
+    height = ROWS * LAYOUT_PITCH
+
+    # D200X extras, in the order the legacy renderer shows them: a row of
+    # dials under the keys, then the two small side buttons.
+    for i in range(model.encoders):
+        x, y = at(i * (COLUMNS - 1) / max(model.encoders - 1, 1), ROWS)
+        controls.append({"controller": "Encoder", "position": i, "shape": "circle",
+                         "cx": x + LAYOUT_KEY // 2, "cy": y + LAYOUT_KEY // 2, "r": LAYOUT_KEY // 2})
+    if model.encoders:
+        height += LAYOUT_PITCH
+    if model.touchpoints:
+        _, y = at(0, height // LAYOUT_PITCH)
+        row_width = model.touchpoints * LAYOUT_PITCH - (LAYOUT_PITCH - LAYOUT_KEY)
+        left = LAYOUT_MARGIN + (grid_width - row_width) // 2
+        for i, position in enumerate(TOUCHPOINT_KEYS[:model.touchpoints]):
+            controls.append(rect("Keypad", position, left + i * LAYOUT_PITCH, y,
+                                 LAYOUT_KEY, LAYOUT_KEY // 2))
+        height += LAYOUT_KEY // 2 + (LAYOUT_PITCH - LAYOUT_KEY)
+
+    screen_height = ROWS * LAYOUT_PITCH - (LAYOUT_PITCH - LAYOUT_KEY)
+    return {
+        "canvas": {"width": grid_width + 2 * LAYOUT_MARGIN,
+                   "height": height - (LAYOUT_PITCH - LAYOUT_KEY) + 2 * LAYOUT_MARGIN,
+                   "unit": "px"},
+        "surfaces": [{"id": "screen", "kind": "display", "x": LAYOUT_MARGIN, "y": LAYOUT_MARGIN,
+                      "width": grid_width, "height": screen_height}],
+        "controls": controls,
+    }
+
+
 DEFAULTS_FILE = "defaults.json"  # written by the installer, e.g. {"model": "d200h"}
 
 
@@ -679,6 +741,8 @@ class D200XPlugin:
                 "touchpoints": self._model.touchpoints,
                 "infobars": 0,
                 "type": DEVICE_TYPE,
+                "layoutVersion": LAYOUT_VERSION,
+                "layout": build_layout(self._model),
             },
         })
         self._registered = True

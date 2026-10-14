@@ -224,8 +224,12 @@ OpenDeck's brightness setting and the **Device Brightness** action are passed st
 - **The wide screen can't be one big key in OpenDeck's editor.** OpenDeck draws
   every device as a uniform grid of square keys, and a plugin can't merge cells.
   So the wide screen is key 13, with an empty key 14 beside it. On the deck it's
-  one screen. Fixing this needs a change in OpenDeck itself
-  (`src/components/DeviceView.svelte`).
+  one screen. Fixing this needs a change in OpenDeck itself.
+  [OpenDeck PR #359](https://github.com/nekename/OpenDeck/pull/359) proposes
+  letting plugins describe their exact layout, and this plugin already sends
+  one: key 13 as a single double-width key, with the side buttons at half
+  height. Stock OpenDeck ignores it. A build with #359 should draw the deck
+  correctly with no plugin update.
 - **D200X side buttons get their own row** in the editor, at full size, rather
   than sitting beside the dials. This is the same OpenDeck layout limitation.
 - **Icons are re-sent as one bundle.** The firmware can't update a single key, so

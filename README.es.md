@@ -236,8 +236,12 @@ directamente al deck.
   OpenDeck.** OpenDeck dibuja todos los dispositivos como una cuadrícula
   uniforme de teclas cuadradas, y un plugin no puede fusionar celdas. Así que la
   pantalla ancha es la tecla 13, con una tecla 14 vacía al lado. En el deck es
-  una sola pantalla. Arreglarlo requiere cambiar OpenDeck
-  (`src/components/DeviceView.svelte`).
+  una sola pantalla. Arreglarlo requiere cambiar OpenDeck.
+  [El PR #359 de OpenDeck](https://github.com/nekename/OpenDeck/pull/359)
+  propone que los plugins describan su distribución exacta, y este plugin ya la
+  envía: la tecla 13 como una sola tecla doble y los botones laterales a media
+  altura. OpenDeck sin modificar la ignora. Una versión con #359 debería dibujar
+  el deck correctamente sin actualizar el plugin.
 - **Los botones laterales de la D200X tienen su propia fila** en el editor, a
   tamaño completo, en vez de ir junto a las ruletas. Es la misma limitación de
   diseño de OpenDeck.
