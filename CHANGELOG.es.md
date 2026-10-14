@@ -2,6 +2,16 @@
 
 # Registro de cambios
 
+## 1.2.2 — 2026-10-14
+
+### Cambiado
+
+- **El consumo de CPU en reposo es ahora prácticamente nulo.** El hilo HID
+  consultaba la entrada cada 5 ms y se despertaba unas 200 veces por segundo
+  (alrededor de un 0,4 % de un núcleo con el deck en reposo). Ahora espera la
+  entrada con una lectura bloqueante que expira cada 100 ms. Las pulsaciones se
+  detectan en cuanto llegan.
+
 ## 1.2.1 — 2026-10-14
 
 ### Arreglado

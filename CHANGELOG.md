@@ -2,6 +2,15 @@
 
 # Changelog
 
+## 1.2.2 — 2026-10-14
+
+### Changed
+
+- **Idle CPU use is now effectively zero.** The HID thread used to poll for
+  input every 5 ms, waking about 200 times a second (around 0.4% of a core on
+  an idle deck). It now waits for input with a blocking read that times out
+  every 100 ms. Key presses are picked up the moment they arrive.
+
 ## 1.2.1 — 2026-10-14
 
 ### Fixed

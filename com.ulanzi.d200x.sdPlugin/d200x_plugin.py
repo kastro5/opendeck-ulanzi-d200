@@ -180,7 +180,7 @@ CLOCK_INTERVAL = 2.0     # how often the CPU/RAM/GPU gauges are refreshed
 GPU_INTERVAL = 5.0       # GPU utilisation is the expensive one to sample
 RECONNECT_GRACE = 30.0   # tolerate this long of HID absence before deregistering
 SETTINGS_WAIT = 2.0      # how long the first registration waits to learn the model
-HID_POLL = 0.005
+HID_READ_TIMEOUT_MS = 100  # also the longest a queued write waits to go out
 # The firmware falls back to its boot logo when the host goes quiet for well
 # under a minute (homedeck pings it every second). Restating the brightness is
 # a keep-alive that redraws nothing; restating the clock mode would blink.
@@ -487,7 +487,6 @@ class HidWorker(threading.Thread):
             devices.sort(key=lambda d: d.get("interface_number") != VENDOR_INTERFACE)
             dev = hid.device()
             dev.open_path(devices[0]["path"])
-            dev.set_nonblocking(True)
         except Exception as exc:
             logger.debug("Open failed: %s", exc)
             return False
@@ -518,7 +517,7 @@ class HidWorker(threading.Thread):
                 and time.monotonic() - self._missing_since > RECONNECT_GRACE):
             self._announced = False
             self._missing_since = None
-            logger.warning("Deck gone for %.0fs — reporting disconnect", RECONNECT_GRACE)
+            logger.warning("Deck gone for %.0fs â€” reporting disconnect", RECONNECT_GRACE)
             self._dispatch(self._on_disconnect)
 
     def _run_commands(self) -> None:
@@ -565,7 +564,10 @@ class HidWorker(threading.Thread):
                 continue
 
             try:
-                report = self._dev.read(PACKET_SIZE)
+                # Blocks (without the GIL) until a report arrives or the timeout
+                # passes, so an idle deck costs a few wakeups a second rather
+                # than a busy poll, and key presses are picked up immediately.
+                report = self._dev.read(PACKET_SIZE, HID_READ_TIMEOUT_MS)
             except Exception as exc:
                 self._drop(f"read: {exc}")
                 continue
@@ -574,8 +576,6 @@ class HidWorker(threading.Thread):
                 event = parse_input(bytes(report))
                 if event:
                     self._dispatch(self._on_input, event)
-            else:
-                time.sleep(HID_POLL)
 
         self._drop("shutdown")
 

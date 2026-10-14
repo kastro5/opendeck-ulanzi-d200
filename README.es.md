@@ -306,7 +306,9 @@ Mientras el firmware dibuja él mismo la pantalla ancha (reloj o monitor), esa
 celda se deja fuera del paquete para que no parpadee en cada actualización.
 
 **Entrada.** Las pulsaciones de teclas, los giros y las pulsaciones de las
-ruletas llegan como reports HID de entrada. Se reenvían a OpenDeck como
+ruletas llegan como reports HID de entrada. El hilo HID las espera con una
+lectura bloqueante que expira cada 100 ms, así que un deck en reposo apenas
+consume CPU. Se reenvían a OpenDeck como
 `keyDown`/`keyUp` y `encoderChange`/`encoderDown`/`encoderUp`.
 
 **Señal de vida.** El firmware vuelve a su logo de arranque si el host pasa

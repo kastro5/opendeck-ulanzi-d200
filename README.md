@@ -291,7 +291,8 @@ While the firmware draws the wide screen itself (clock or system monitor), that
 cell is left out of the bundle, so it doesn't flicker on every update.
 
 **Input.** Key presses, dial turns and dial presses arrive as HID input reports.
-They're forwarded to OpenDeck as `keyDown`/`keyUp` and
+The HID thread waits for them with a blocking read that times out every 100 ms,
+so an idle deck uses next to no CPU. They're forwarded to OpenDeck as `keyDown`/`keyUp` and
 `encoderChange`/`encoderDown`/`encoderUp`.
 
 **Keep-alive.** The firmware falls back to its boot logo if the host is silent
