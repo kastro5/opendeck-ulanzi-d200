@@ -178,7 +178,7 @@ or scoop). From the repository:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1                # build into .venv and install
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200h    # D200H owners
-powershell -ExecutionPolicy Bypass -File .install.ps1 -SkipBuild    # reinstall the last build
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild    # reinstall the last build
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 ```
 

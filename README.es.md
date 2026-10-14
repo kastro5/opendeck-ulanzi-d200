@@ -185,7 +185,7 @@ Para compilarlo hace falta Python 3.10 o posterior (python.org,
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1                # compila en .venv e instala
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200h    # para la D200H
-powershell -ExecutionPolicy Bypass -File .install.ps1 -SkipBuild    # reinstala la última compilación
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild    # reinstala la última compilación
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 ```
 
