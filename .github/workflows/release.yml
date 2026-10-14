@@ -1,0 +1,76 @@
+# Build the Windows plugin and publish a release when a version tag is pushed.
+#
+#   git tag -a v1.2.3 -m "v1.2.3" && git push origin v1.2.3
+#
+# The tag must match the Version in manifest.json, and CHANGELOG.md must have a
+# "## 1.2.3" entry; it becomes the release notes. Run the workflow by hand
+# (Actions -> Release -> Run workflow) for a test build: the zips are uploaded
+# as an artifact and nothing is published.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write # create the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install build dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-build.txt
+
+      - name: Build d200x_plugin.exe
+        # Console subsystem on purpose: OpenDeck starts plugins with
+        # CREATE_NO_WINDOW and sends stderr to its plugin log.
+        run: >
+          python -m PyInstaller --noconfirm --clean --onefile --log-level WARN
+          --name d200x_plugin --distpath dist --workpath build --specpath build
+          com.ulanzi.d200x.sdPlugin/d200x_plugin.py
+
+      - name: Smoke test
+        # With nothing listening on the port, the plugin must get as far as the
+        # websocket connect -- proof every bundled import loaded.
+        shell: bash
+        run: |
+          set +e
+          ./dist/d200x_plugin.exe -port 1 -pluginUUID ci 2> smoke.log
+          cat smoke.log
+          grep -qi "refused" smoke.log || { echo "plugin did not reach the websocket"; exit 1; }
+          ! grep -q "Missing Python packages" smoke.log
+
+      - name: Package
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            python scripts/package_release.py --exe dist/d200x_plugin.exe --version "$GITHUB_REF_NAME"
+          else
+            python scripts/package_release.py --exe dist/d200x_plugin.exe
+          fi
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          path: release/
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" release/*.zip
+          --title "$GITHUB_REF_NAME"
+          --notes-file release/notes.md
+          --verify-tag

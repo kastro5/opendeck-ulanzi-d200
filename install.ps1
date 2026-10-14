@@ -73,7 +73,7 @@ if (-not $SkipBuild) {
     }
 
     Write-Host 'Installing build dependencies...'
-    & $VenvPython -m pip install --quiet --disable-pip-version-check hidapi pillow websockets psutil pyinstaller
+    & $VenvPython -m pip install --quiet --disable-pip-version-check -r (Join-Path $Here 'requirements-build.txt')
     if ($LASTEXITCODE) { Write-Error 'pip install failed.' }
 
     Write-Host 'Building d200x_plugin.exe...'

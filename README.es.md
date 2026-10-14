@@ -366,9 +366,28 @@ datos.
 |---|---|
 | `com.ulanzi.d200x.sdPlugin/` | el plugin: `d200x_plugin.py`, `manifest.json`, iconos, panel de ajustes |
 | `install.ps1` | script de compilación e instalación para Windows |
+| `requirements-build.txt` | dependencias de compilación fijadas, compartidas por `install.ps1` y la CI |
+| `scripts/package_release.py` | empaqueta el exe en los zips de cada modelo |
+| `.github/workflows/release.yml` | compila y publica las versiones |
 | `install.sh` | script de instalación para Linux |
 | `60-ulanzi-d200x.rules` | regla udev para Linux |
 | `CHANGELOG.es.md` | notas de versión |
+
+## Publicar una versión
+
+Las versiones las compila GitHub Actions, no el PC de quien desarrolla:
+
+1. Sube `Version` en `com.ulanzi.d200x.sdPlugin/manifest.json` y añade una
+   entrada `## <versión>` a `CHANGELOG.md` (y a `CHANGELOG.es.md`). La entrada
+   en inglés se usa como notas de la versión.
+2. Haz commit, crea la etiqueta y súbela:
+   `git tag -a v1.2.3 -m "v1.2.3" && git push origin main v1.2.3`
+
+El [workflow Release](.github/workflows/release.yml) compila el exe en Windows,
+comprueba que arranca, empaqueta los dos zips y publica la versión. Rechaza una
+etiqueta que no coincida con la versión del manifest. Para probar una
+compilación sin publicar nada, lanza el workflow a mano desde la pestaña Actions
+y descarga los zips de sus artefactos.
 
 ## Créditos y licencia
 

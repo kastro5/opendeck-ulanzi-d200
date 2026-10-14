@@ -1,0 +1,7 @@
+# Pinned so local (install.ps1) and CI release builds produce the same exe.
+hidapi==0.15.0
+pillow==12.3.0
+websockets==17.2
+psutil==7.2.2
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8

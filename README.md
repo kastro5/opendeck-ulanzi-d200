@@ -347,9 +347,28 @@ Input hardware indices: screens `0`–`13`, side buttons `15`/`16`, dials
 |---|---|
 | `com.ulanzi.d200x.sdPlugin/` | the plugin: `d200x_plugin.py`, `manifest.json`, icons, settings panel |
 | `install.ps1` | Windows build + install script |
+| `requirements-build.txt` | pinned build dependencies, shared by `install.ps1` and CI |
+| `scripts/package_release.py` | packages the exe into the per-model release zips |
+| `.github/workflows/release.yml` | builds and publishes releases |
 | `install.sh` | Linux install script |
 | `60-ulanzi-d200x.rules` | Linux udev rule |
 | `CHANGELOG.md` | release notes |
+
+## Making a release
+
+Releases are built by GitHub Actions, not on a developer's PC:
+
+1. Bump `Version` in `com.ulanzi.d200x.sdPlugin/manifest.json`, and add a
+   `## <version>` entry to `CHANGELOG.md` (and `CHANGELOG.es.md`). The English
+   entry becomes the release notes.
+2. Commit, then tag and push:
+   `git tag -a v1.2.3 -m "v1.2.3" && git push origin main v1.2.3`
+
+The [Release workflow](.github/workflows/release.yml) builds the exe on
+Windows, checks that it starts, packages both zips, and publishes the release.
+It refuses a tag that doesn't match the manifest version. To test a build
+without publishing, run the workflow by hand from the Actions tab and download
+the zips from its artifacts.
 
 ## Credits and license
 
