@@ -9,6 +9,11 @@ Ulanzi D200X show up as a normal deck inside OpenDeck, so any OpenDeck action
 This is not a stand-alone controller — it replaces the role of `ulanzi_manager`'s
 daemon while OpenDeck is running. Run one or the other, not both.
 
+Runs on **Linux and Windows**. Windows support is a fork of
+[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x);
+it has also been tested with the plain **D200**, which uses the same USB IDs and
+protocol (it just has no dials or side buttons, so those slots never fire).
+
 ## What it exposes
 
 | Hardware | OpenDeck slot | Notes |
@@ -144,6 +149,37 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 Then restart OpenDeck.
+
+## Windows
+
+No udev rule or driver is needed: Windows lets any user open the deck. The
+plugin ships as a self-contained `d200x_plugin.exe`, built with PyInstaller, so
+OpenDeck does not depend on a Python install at runtime.
+
+Building needs Python 3.10 or newer (python.org, `winget install Python.Python.3.13`,
+or scoop). From the repository:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1             # build into .venv and install
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild  # reinstall the last build
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
+
+The plugin goes to `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`; then
+restart OpenDeck. **Quit Ulanzi Studio** (`UlanziDeck.exe`) and stop it from
+starting with Windows, since it drives the same device. The installer warns if
+it is running.
+
+The plugin log is `%LOCALAPPDATA%\opendeck\logs\plugins\com.ulanzi.d200x.sdPlugin.log`.
+
+Differences from Linux:
+
+* The device has no report IDs, so on Windows every output report is sent with
+  a leading `0x00` byte (hidapi would otherwise take the `0x7c` header as the
+  ID). Interface 0 is opened explicitly, since interface 1 is a boot keyboard that
+  Windows keeps locked.
+* CPU and RAM for the stats screen come from `psutil`. GPU load comes only from
+  `nvidia-smi`, so on AMD or Intel graphics the GPU gauge stays at 0.
 
 ## How it works
 

@@ -2,6 +2,16 @@
 
 # Changelog
 
+## 1.2.0 — 2026-10-14
+
+### Added
+
+- **Windows support.** `install.ps1` builds a self-contained
+  `d200x_plugin.exe` and installs it into OpenDeck. On Windows, output reports
+  get the leading report ID byte the HID stack requires, interface 0 is opened
+  explicitly, and the stats screen reads CPU and RAM through `psutil`.
+- Tested with the plain D200, which shares the D200X's USB IDs and protocol.
+
 ## 1.1.3 — 2026-08-05
 
 ### Fixed

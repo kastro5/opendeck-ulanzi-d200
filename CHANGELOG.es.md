@@ -2,6 +2,16 @@
 
 # Registro de cambios
 
+## 1.2.0 — 2026-10-14
+
+### Añadido
+
+- **Soporte para Windows.** `install.ps1` genera un `d200x_plugin.exe`
+  autónomo y lo instala en OpenDeck. En Windows, los reports de salida llevan el
+  byte de report ID que exige la pila HID, se abre explícitamente la interfaz 0 y
+  la pantalla de estadísticas lee CPU y RAM con `psutil`.
+- Probado con la D200 normal, que comparte IDs USB y protocolo con la D200X.
+
 ## 1.1.3 — 2026-08-05
 
 ### Arreglado

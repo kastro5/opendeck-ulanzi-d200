@@ -10,6 +10,12 @@ cualquier acción de OpenDeck, venga del plugin que venga.
 Esto no es un controlador independiente: mientras OpenDeck esté funcionando,
 sustituye al daemon de `ulanzi_manager`. Usa uno u otro, no los dos a la vez.
 
+Funciona en **Linux y Windows**. El soporte de Windows es un fork de
+[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x);
+también se ha probado con la **D200** normal, que usa los mismos IDs USB y el
+mismo protocolo (solo que no tiene ruletas ni botones laterales, así que esos
+huecos nunca se disparan).
+
 ## Qué expone
 
 | Hardware | Hueco en OpenDeck | Notas |
@@ -148,6 +154,39 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 Después reinicia OpenDeck.
+
+## Windows
+
+No hace falta regla udev ni driver: Windows deja que cualquier usuario abra el
+deck. El plugin se distribuye como un `d200x_plugin.exe` autónomo, generado con
+PyInstaller, para que OpenDeck no dependa de una instalación de Python al
+ejecutarlo.
+
+Para compilarlo hace falta Python 3.10 o posterior (python.org,
+`winget install Python.Python.3.13` o scoop). Desde el repositorio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1             # compila en .venv e instala
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild  # reinstala la última compilación
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
+
+El plugin se instala en `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`;
+después reinicia OpenDeck. **Cierra Ulanzi Studio** (`UlanziDeck.exe`) y evita
+que arranque con Windows, porque controla el mismo dispositivo. El instalador
+avisa si está en marcha.
+
+El log del plugin está en `%LOCALAPPDATA%\opendeck\logs\plugins\com.ulanzi.d200x.sdPlugin.log`.
+
+Diferencias con Linux:
+
+* El dispositivo no usa report IDs, así que en Windows cada report de salida se
+  envía con un byte `0x00` delante (si no, hidapi tomaría la cabecera `0x7c`
+  como ID). Se abre explícitamente la interfaz 0, porque la interfaz 1 es un
+  teclado de arranque que Windows mantiene bloqueado.
+* La CPU y la RAM de la pantalla de estadísticas salen de `psutil`. La carga de
+  la GPU solo sale de `nvidia-smi`, así que con gráficas AMD o Intel el
+  indicador de GPU se queda en 0.
 
 ## Cómo funciona
 
