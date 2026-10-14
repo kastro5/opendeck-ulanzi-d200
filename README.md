@@ -45,7 +45,29 @@ be told apart over USB, so you tell the plugin which one you have (see
 
 ## Install on Windows
 
-### 1. Prerequisites
+### Quick install (download)
+
+No Python needed.
+
+1. **Quit Ulanzi Studio** (`UlanziDeck.exe`, in the system tray) and turn off its
+   autostart. It drives the same device and would fight OpenDeck over it.
+2. Install [OpenDeck](https://github.com/nekename/OpenDeck/releases) and start
+   it once.
+3. From the [latest release](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest),
+   download the zip for your model: `opendeck-ulanzi-d200h-windows-…zip` or
+   `opendeck-ulanzi-d200x-windows-…zip`.
+4. Extract it into `%APPDATA%\opendeck\plugins\` (paste that path into the
+   Explorer address bar). You should end up with
+   `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin\d200x_plugin.exe`.
+5. Quit OpenDeck from the tray and start it again.
+
+If Windows SmartScreen or your antivirus flags `d200x_plugin.exe`, that's because
+it's an unsigned PyInstaller build. If you'd rather not trust a downloaded exe,
+build it yourself as described below.
+
+### Build from source
+
+#### 1. Prerequisites
 
 - **OpenDeck** for Windows ([releases](https://github.com/nekename/OpenDeck/releases)).
   Start it once so it creates its config folder.
@@ -58,7 +80,7 @@ be told apart over USB, so you tell the plugin which one you have (see
 
 No driver is needed. Windows lets any user open the deck.
 
-### 2. Build and install
+#### 2. Build and install
 
 Clone or download this repository, open PowerShell in its folder, and run:
 
@@ -79,12 +101,12 @@ The script:
 3. Copies the plugin to `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`.
 4. Warns you if Ulanzi Studio or another D200 plugin is running.
 
-### 3. Restart OpenDeck
+#### 3. Restart OpenDeck
 
 Quit OpenDeck from the tray icon and start it again. The deck appears in the
 device selector at the top left, as **Ulanzi D200H** or **Ulanzi D200X**.
 
-### Other installer options
+#### Other installer options
 
 ```powershell
 .\install.ps1 -SkipBuild    # reinstall the last build without rebuilding

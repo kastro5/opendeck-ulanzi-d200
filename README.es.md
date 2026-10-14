@@ -46,7 +46,30 @@ pueden distinguir por USB, así que tienes que decirle al plugin cuál tienes (v
 
 ## Instalación en Windows
 
-### 1. Requisitos
+### Instalación rápida (descarga)
+
+No necesitas Python.
+
+1. **Cierra Ulanzi Studio** (`UlanziDeck.exe`, en la bandeja del sistema) y
+   desactiva su arranque automático. Controla el mismo dispositivo y se pelearía
+   con OpenDeck por él.
+2. Instala [OpenDeck](https://github.com/nekename/OpenDeck/releases) y ábrelo
+   una vez.
+3. Desde la [última versión](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest),
+   descarga el zip de tu modelo: `opendeck-ulanzi-d200h-windows-…zip` o
+   `opendeck-ulanzi-d200x-windows-…zip`.
+4. Descomprímelo en `%APPDATA%\opendeck\plugins\` (pega esa ruta en la barra de
+   direcciones del Explorador). Debe quedar
+   `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin\d200x_plugin.exe`.
+5. Cierra OpenDeck desde la bandeja y vuelve a abrirlo.
+
+Si Windows SmartScreen o tu antivirus marcan `d200x_plugin.exe`, es porque se
+trata de una compilación de PyInstaller sin firmar. Si prefieres no fiarte de un
+exe descargado, compílalo tú mismo como se explica abajo.
+
+### Compilar desde el código
+
+#### 1. Requisitos
 
 - **OpenDeck** para Windows ([descargas](https://github.com/nekename/OpenDeck/releases)).
   Ábrelo una vez para que cree su carpeta de configuración.
@@ -60,7 +83,7 @@ pueden distinguir por USB, así que tienes que decirle al plugin cuál tienes (v
 
 No hace falta ningún driver: Windows deja que cualquier usuario abra el deck.
 
-### 2. Compilar e instalar
+#### 2. Compilar e instalar
 
 Clona o descarga este repositorio, abre PowerShell en su carpeta y ejecuta:
 
@@ -81,13 +104,13 @@ El script:
 3. Copia el plugin a `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`.
 4. Te avisa si Ulanzi Studio u otro plugin de D200 está en marcha.
 
-### 3. Reinicia OpenDeck
+#### 3. Reinicia OpenDeck
 
 Cierra OpenDeck desde el icono de la bandeja y vuelve a abrirlo. El deck aparece
 en el selector de dispositivos de arriba a la izquierda como **Ulanzi D200H** o
 **Ulanzi D200X**.
 
-### Otras opciones del instalador
+#### Otras opciones del instalador
 
 ```powershell
 .\install.ps1 -SkipBuild    # reinstala la última compilación sin recompilar
