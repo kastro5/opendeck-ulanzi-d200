@@ -2,6 +2,16 @@
 
 # Changelog
 
+## 1.2.1 — 2026-10-14
+
+### Fixed
+
+- **The deck fell back to the Ulanzi boot logo after less than a minute idle.**
+  The firmware treats a silent host as gone, and in clock mode the plugin sent
+  nothing once the icons were pushed. The plugin now re-sends the current
+  brightness whenever nothing has been written for 5 seconds. This keep-alive
+  redraws nothing, unlike restating the clock mode, which blinks.
+
 ## 1.2.0 — 2026-10-14
 
 ### Added

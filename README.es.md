@@ -309,6 +309,11 @@ celda se deja fuera del paquete para que no parpadee en cada actualización.
 ruletas llegan como reports HID de entrada. Se reenvían a OpenDeck como
 `keyDown`/`keyUp` y `encoderChange`/`encoderDown`/`encoderUp`.
 
+**Señal de vida.** El firmware vuelve a su logo de arranque si el host pasa
+menos de un minuto sin enviar nada. Siempre que el plugin lleva 5 s sin
+escribir, reenvía el brillo actual, lo que mantiene el deck activo sin
+redibujar nada.
+
 **Reconexiones.** El deck reinicia brevemente su conexión USB mientras
 descomprime un paquete grande. El plugin vuelve a abrir el dispositivo sin
 avisar y solo le dice a OpenDeck que el deck ha desaparecido tras 30 s de

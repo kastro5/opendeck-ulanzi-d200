@@ -2,6 +2,17 @@
 
 # Registro de cambios
 
+## 1.2.1 — 2026-10-14
+
+### Arreglado
+
+- **El deck volvía al logo de arranque de Ulanzi tras menos de un minuto sin
+  actividad.** El firmware da por desaparecido a un host que no envía nada, y en
+  modo reloj el plugin no enviaba nada una vez subidos los iconos. Ahora el
+  plugin reenvía el brillo actual siempre que lleve 5 segundos sin escribir. Esta
+  señal de vida no redibuja nada, a diferencia de repetir el modo reloj, que
+  parpadea.
+
 ## 1.2.0 — 2026-10-14
 
 ### Añadido

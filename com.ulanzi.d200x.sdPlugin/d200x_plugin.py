@@ -181,6 +181,10 @@ GPU_INTERVAL = 5.0       # GPU utilisation is the expensive one to sample
 RECONNECT_GRACE = 30.0   # tolerate this long of HID absence before deregistering
 SETTINGS_WAIT = 2.0      # how long the first registration waits to learn the model
 HID_POLL = 0.005
+# The firmware falls back to its boot logo when the host goes quiet for well
+# under a minute (homedeck pings it every second). Restating the brightness is
+# a keep-alive that redraws nothing; restating the clock mode would blink.
+KEEPALIVE_INTERVAL = 5.0
 
 IS_WINDOWS = sys.platform == "win32"
 
@@ -457,6 +461,8 @@ class HidWorker(threading.Thread):
         self._dev = None
         self._announced = False
         self._missing_since: Optional[float] = None
+        self._last_write = 0.0
+        self._brightness: Optional[bytes] = None  # last SET_BRIGHTNESS payload
 
     # -- public API (thread safe) ------------------------------------------- #
 
@@ -526,11 +532,23 @@ class HidWorker(threading.Thread):
                     send_bundle(self._dev, args[0])
                 elif kind == "command":
                     send_command(self._dev, args[0], args[1])
+                    if args[0] == CMD_SET_BRIGHTNESS:
+                        self._brightness = args[1]
+                self._last_write = time.monotonic()
             except Exception as exc:
                 # Re-queue so the write survives the reconnect.
                 self._commands.put((kind, args))
                 self._drop(f"write: {exc}")
                 return
+
+    def _keep_alive(self) -> None:
+        if self._brightness is None or time.monotonic() - self._last_write < KEEPALIVE_INTERVAL:
+            return
+        try:
+            send_command(self._dev, CMD_SET_BRIGHTNESS, self._brightness)
+            self._last_write = time.monotonic()
+        except Exception as exc:
+            self._drop(f"keep-alive: {exc}")
 
     def run(self) -> None:
         while not self._stop.is_set():
@@ -541,6 +559,8 @@ class HidWorker(threading.Thread):
                 continue
 
             self._run_commands()
+            if self._dev is not None:
+                self._keep_alive()
             if self._dev is None:
                 continue
 

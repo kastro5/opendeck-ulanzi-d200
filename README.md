@@ -294,6 +294,11 @@ cell is left out of the bundle, so it doesn't flicker on every update.
 They're forwarded to OpenDeck as `keyDown`/`keyUp` and
 `encoderChange`/`encoderDown`/`encoderUp`.
 
+**Keep-alive.** The firmware falls back to its boot logo if the host is silent
+for less than a minute. Whenever nothing has been written for 5 s, the plugin
+re-sends the current brightness, which keeps the deck awake without redrawing
+anything.
+
 **Reconnects.** The deck briefly resets its USB connection while it unpacks a
 large bundle. The plugin reopens the device quietly and only tells OpenDeck the
 deck is gone after 30 s of absence. On reconnect it re-sends its cached icons.
