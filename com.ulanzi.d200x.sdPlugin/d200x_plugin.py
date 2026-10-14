@@ -58,6 +58,11 @@ try:
 except ImportError:  # pragma: no cover - reported at runtime
     websockets = None
 
+try:
+    import psutil
+except ImportError:  # optional on Linux, where /proc is read directly
+    psutil = None
+
 
 # --------------------------------------------------------------------------- #
 # Device constants
@@ -67,6 +72,7 @@ VENDOR_ID = 0x2207
 PRODUCT_ID = 0x0019
 
 PACKET_SIZE = 1024
+VENDOR_INTERFACE = 0  # interface 1 is a boot keyboard, locked by Windows
 CHUNK_DATA = 1016  # payload bytes carried by the first packet
 HEADER = b"\x7c\x7c"
 
@@ -134,6 +140,8 @@ GPU_INTERVAL = 5.0       # GPU utilisation is the expensive one to sample
 RECONNECT_GRACE = 30.0   # tolerate this long of HID absence before deregistering
 HID_POLL = 0.005
 
+IS_WINDOWS = sys.platform == "win32"
+
 logger = logging.getLogger("d200x")
 
 
@@ -151,16 +159,27 @@ def build_packet(command: int, data: bytes, length: int) -> bytes:
     return bytes(packet)
 
 
+def write_packet(dev, packet: bytes) -> None:
+    """Write one 1024-byte output report.
+
+    The device uses no report IDs. hidraw takes the report as-is, but the
+    Windows HID stack wants a leading report ID byte (0) -- without it hidapi
+    sends the 0x7c header as the ID and everything shifts by one byte. Reads
+    need no such care: Windows strips the ID before hidapi hands the report up.
+    """
+    dev.write(b"\x00" + packet if IS_WINDOWS else packet)
+
+
 def send_command(dev, command: int, payload: bytes) -> None:
-    dev.write(build_packet(command, payload, len(payload)))
+    write_packet(dev, build_packet(command, payload, len(payload)))
 
 
 def send_bundle(dev, data: bytes) -> None:
     """Send a ZIP bundle: one header packet followed by raw 1024-byte chunks."""
     first = data[:CHUNK_DATA].ljust(CHUNK_DATA, b"\x00")
-    dev.write(build_packet(CMD_SET_BUTTONS, first, len(data)))
+    write_packet(dev, build_packet(CMD_SET_BUTTONS, first, len(data)))
     for offset in range(CHUNK_DATA, len(data), PACKET_SIZE):
-        dev.write(data[offset:offset + PACKET_SIZE].ljust(PACKET_SIZE, b"\x00"))
+        write_packet(dev, data[offset:offset + PACKET_SIZE].ljust(PACKET_SIZE, b"\x00"))
 
 
 def parse_input(data: bytes) -> Optional[Tuple[int, bool, Optional[int]]]:
@@ -284,6 +303,9 @@ class SystemStats:
     The firmware has no way of measuring the host, so the three percentages it
     draws on the status screen are whatever the last SET_SMALL_WINDOW command
     carried -- send zeroes and the gauges sit at zero.
+
+    Where there is no /proc (Windows), CPU and RAM come from psutil instead,
+    and the GPU only from nvidia-smi.
     """
 
     def __init__(self) -> None:
@@ -297,6 +319,9 @@ class SystemStats:
         return self._cpu(), self._memory(), self._gpu()
 
     def _cpu(self) -> int:
+        if IS_WINDOWS and psutil is not None:
+            # Like /proc/stat, the first call only sets the baseline.
+            return max(0, min(100, round(psutil.cpu_percent(interval=None))))
         try:
             with open("/proc/stat") as handle:
                 fields = [int(value) for value in handle.readline().split()[1:]]
@@ -318,6 +343,8 @@ class SystemStats:
         return max(0, min(100, round(100 * busy / total_delta)))
 
     def _memory(self) -> int:
+        if IS_WINDOWS and psutil is not None:
+            return max(0, min(100, round(psutil.virtual_memory().percent)))
         values: Dict[str, int] = {}
         try:
             with open("/proc/meminfo") as handle:
@@ -353,7 +380,9 @@ class SystemStats:
             try:
                 result = subprocess.run(
                     [self._nvidia, "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
-                    capture_output=True, text=True, timeout=2, check=True)
+                    capture_output=True, text=True, timeout=2, check=True,
+                    # Don't flash a console window for every sample.
+                    creationflags=subprocess.CREATE_NO_WINDOW if IS_WINDOWS else 0)
                 self._gpu_value = max(0, min(100, int(result.stdout.split()[0])))
             except Exception:
                 # Don't keep paying for a query that does not work.
@@ -405,6 +434,9 @@ class HidWorker(threading.Thread):
             devices = hid.enumerate(VENDOR_ID, PRODUCT_ID)
             if not devices:
                 return False
+            # Prefer the vendor interface; hidraw has always listed it first,
+            # Windows makes no such promise.
+            devices.sort(key=lambda d: d.get("interface_number") != VENDOR_INTERFACE)
             dev = hid.device()
             dev.open_path(devices[0]["path"])
             dev.set_nonblocking(True)
@@ -861,12 +893,17 @@ def main() -> int:
         stream=sys.stderr,
     )
 
-    missing = [name for name, module in
-               (("hidapi", hid), ("Pillow", Image), ("websockets", websockets)) if module is None]
+    required = [("hidapi", hid), ("Pillow", Image), ("websockets", websockets)]
+    if IS_WINDOWS:
+        required.append(("psutil", psutil))
+    missing = [name for name, module in required if module is None]
     if missing:
         logger.error("Missing Python packages: %s", ", ".join(missing))
-        logger.error("Install them on the host, e.g. "
-                     "sudo pacman -S python-hidapi python-pillow python-websockets")
+        if IS_WINDOWS:
+            logger.error("Install them with: pip install hidapi pillow websockets psutil")
+        else:
+            logger.error("Install them on the host, e.g. "
+                         "sudo pacman -S python-hidapi python-pillow python-websockets")
         return 1
 
     args = parse_args(sys.argv[1:])
