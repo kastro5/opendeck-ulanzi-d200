@@ -517,7 +517,7 @@ class HidWorker(threading.Thread):
                 and time.monotonic() - self._missing_since > RECONNECT_GRACE):
             self._announced = False
             self._missing_since = None
-            logger.warning("Deck gone for %.0fs â€” reporting disconnect", RECONNECT_GRACE)
+            logger.warning("Deck gone for %.0fs — reporting disconnect", RECONNECT_GRACE)
             self._dispatch(self._on_disconnect)
 
     def _run_commands(self) -> None:
