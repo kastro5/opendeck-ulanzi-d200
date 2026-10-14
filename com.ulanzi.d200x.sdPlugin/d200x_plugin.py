@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""OpenDeck device plugin for the Ulanzi D200X.
+"""OpenDeck device plugin for the Ulanzi D200X and D200H.
 
-Exposes the D200X to OpenDeck as a device with:
+Both share one USB ID and protocol, and nothing the device reports tells them
+apart, so the model is a global setting (``model``). The D200X is exposed to
+OpenDeck as a device with:
 
     * 14 LCD keys  -- a 5x3 grid where the last two cells of the bottom row are
       a single, double-width screen (device index 13).
     * 2 side buttons (device indices 15/16), reported to OpenDeck as touchpoints.
     * 3 rotary encoders (device indices 17/18/19), reported as encoders.
+
+The D200H has the same 14 screens and neither the side buttons nor the dials.
+Each model registers under its own device ID, so OpenDeck keeps a separate set
+of profiles for each layout.
 
 OpenDeck grid position -> D200X hardware index is the identity mapping:
 
@@ -113,13 +119,11 @@ WIDE_DEFAULT = "clock"
 # OpenDeck device description
 # --------------------------------------------------------------------------- #
 
-DEVICE_ID = "ulanzi-d200x"  # first two chars must match DeviceNamespace ("ul")
-DEVICE_NAME = "Ulanzi D200X"
 DEVICE_TYPE = 0  # plain key grid (type 7 would enable Stream Deck+ LCD strips)
 
 ROWS = 3
 COLUMNS = 5
-ENCODERS = 3
+ENCODERS = 3      # on the D200X; see MODELS
 TOUCHPOINTS = 2
 
 KEY_COUNT = ROWS * COLUMNS          # 15 grid slots
@@ -128,6 +132,43 @@ PHANTOM_KEY = 14                    # right half of WIDE_KEY, not addressable
 SCREEN_KEYS = [i for i in range(KEY_COUNT) if i != PHANTOM_KEY]  # 0..13
 TOUCHPOINT_KEYS = [KEY_COUNT + i for i in range(TOUCHPOINTS)]    # 15, 16
 DIAL_BASE = 17                      # hardware index of encoder 0
+
+
+class Model:
+    def __init__(self, device_id: str, name: str, encoders: int, touchpoints: int):
+        self.id = device_id  # first two chars must match DeviceNamespace ("ul")
+        self.name = name
+        self.encoders = encoders
+        self.touchpoints = touchpoints
+
+
+MODELS = {
+    "d200x": Model("ulanzi-d200x", "Ulanzi D200X", ENCODERS, TOUCHPOINTS),
+    "d200h": Model("ulanzi-d200h", "Ulanzi D200H", 0, 0),
+}
+MODEL_SETTING = "model"
+DEFAULTS_FILE = "defaults.json"  # written by the installer, e.g. {"model": "d200h"}
+
+
+def plugin_dir() -> str:
+    # A PyInstaller build unpacks the script to a temp dir; the exe is what
+    # sits in the plugin folder.
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def default_model() -> str:
+    """The model to assume until the global settings name one."""
+    try:
+        with open(os.path.join(plugin_dir(), DEFAULTS_FILE), encoding="utf-8") as handle:
+            model = str(json.load(handle).get(MODEL_SETTING, "")).lower()
+    except (OSError, ValueError, AttributeError):
+        model = ""
+    return model if model in MODELS else "d200x"
+
+
+MODEL_DEFAULT = default_model()
 
 # --------------------------------------------------------------------------- #
 # Timing
@@ -138,6 +179,7 @@ MIN_BUNDLE_INTERVAL = 1.5  # never push ZIP bundles faster than this
 CLOCK_INTERVAL = 2.0     # how often the CPU/RAM/GPU gauges are refreshed
 GPU_INTERVAL = 5.0       # GPU utilisation is the expensive one to sample
 RECONNECT_GRACE = 30.0   # tolerate this long of HID absence before deregistering
+SETTINGS_WAIT = 2.0      # how long the first registration waits to learn the model
 HID_POLL = 0.005
 
 IS_WINDOWS = sys.platform == "win32"
@@ -448,10 +490,10 @@ class HidWorker(threading.Thread):
         self._missing_since = None
         if not self._announced:
             self._announced = True
-            logger.info("D200X connected")
+            logger.info("Deck connected")
             self._dispatch(self._on_connect)
         else:
-            logger.info("D200X HID handle reacquired")
+            logger.info("Deck HID handle reacquired")
         return True
 
     def _drop(self, reason: str) -> None:
@@ -470,7 +512,7 @@ class HidWorker(threading.Thread):
                 and time.monotonic() - self._missing_since > RECONNECT_GRACE):
             self._announced = False
             self._missing_since = None
-            logger.warning("D200X gone for %.0fs — reporting disconnect", RECONNECT_GRACE)
+            logger.warning("Deck gone for %.0fs — reporting disconnect", RECONNECT_GRACE)
             self._dispatch(self._on_disconnect)
 
     def _run_commands(self) -> None:
@@ -546,6 +588,8 @@ class D200XPlugin:
         self._wide_contexts: set = set()   # our own action sitting on the wide key
         self._stats = SystemStats()
         self._stats_cache: Tuple[int, int, int] = (0, 0, 0)
+        self._model = MODELS[MODEL_DEFAULT]
+        self._hid_started = False
 
     # -- websocket ---------------------------------------------------------- #
 
@@ -578,8 +622,10 @@ class D200XPlugin:
                 await self._send({"event": "getGlobalSettings", "context": self._uuid})
 
                 # Only now may the HID worker report a connection: registerDevice
-                # has nowhere to go before the socket is up.
-                self._hid.start()
+                # has nowhere to go before the socket is up. Hold it a little
+                # longer, until the settings say which model this is, so the
+                # wrong layout never shows up first.
+                self._loop.call_later(SETTINGS_WAIT, self._start_hid)
                 clock = self._loop.create_task(self._clock_loop())
 
                 async for message in ws:
@@ -593,25 +639,33 @@ class D200XPlugin:
             self._hid.stop()
         logger.info("Websocket closed, exiting")
 
+    def _start_hid(self) -> None:
+        if not self._hid_started:
+            self._hid_started = True
+            self._hid.start()
+
     # -- device lifecycle --------------------------------------------------- #
 
-    async def _on_device_connected(self) -> None:
+    async def _register_device(self) -> None:
         await self._send({
             "event": "registerDevice",
             "payload": {
-                "id": DEVICE_ID,
+                "id": self._model.id,
                 "plugin": self._uuid,
-                "name": DEVICE_NAME,
+                "name": self._model.name,
                 "rows": ROWS,
                 "columns": COLUMNS,
-                "encoders": ENCODERS,
-                "touchpoints": TOUCHPOINTS,
+                "encoders": self._model.encoders,
+                "touchpoints": self._model.touchpoints,
                 "infobars": 0,
                 "type": DEVICE_TYPE,
             },
         })
         self._registered = True
-        logger.info("Registered device %s with OpenDeck", DEVICE_ID)
+        logger.info("Registered device %s with OpenDeck", self._model.id)
+
+    async def _on_device_connected(self) -> None:
+        await self._register_device()
 
         # A device that has just been powered up is showing its boot logo, and
         # one that was merely replugged is showing whatever it had before. Either
@@ -638,14 +692,27 @@ class D200XPlugin:
             self._sent_signature = None
             self._schedule_flush()
         else:
-            await self._send({"event": "rerenderImages", "payload": DEVICE_ID})
+            await self._send({"event": "rerenderImages", "payload": self._model.id})
 
     async def _on_device_disconnected(self) -> None:
         if not self._registered:
             return
         self._registered = False
-        await self._send({"event": "deregisterDevice", "payload": DEVICE_ID})
-        logger.info("Deregistered device %s", DEVICE_ID)
+        await self._send({"event": "deregisterDevice", "payload": self._model.id})
+        logger.info("Deregistered device %s", self._model.id)
+
+    async def _switch_model(self, model: Model) -> None:
+        """Swap the layout OpenDeck sees, without touching the hardware."""
+        registered = self._registered
+        if registered:
+            await self._on_device_disconnected()
+        self._model = model
+        # The other model has its own profile, so nothing cached carries over.
+        self._icons.clear()
+        self._wide_contexts.clear()
+        if registered:
+            await self._register_device()
+            await self._send({"event": "rerenderImages", "payload": self._model.id})
 
     # -- inbound events ----------------------------------------------------- #
 
@@ -667,6 +734,13 @@ class D200XPlugin:
             logger.debug("Ignoring event %s", event)
 
     def _on_global_settings(self, settings: dict) -> None:
+        model = MODELS.get(str(settings.get(MODEL_SETTING, MODEL_DEFAULT)).lower(),
+                           MODELS[MODEL_DEFAULT])
+        if model is not self._model:
+            logger.info("Model: %s", model.name)
+            self._loop.create_task(self._switch_model(model))
+        self._start_hid()
+
         mode = str(settings.get(WIDE_SETTING, WIDE_DEFAULT)).lower()
         if mode not in WIDE_MODES:
             mode = WIDE_DEFAULT
@@ -679,7 +753,7 @@ class D200XPlugin:
 
     def _on_appearance(self, event: str, message: dict) -> None:
         """Track our own 'Wide screen' action so its icon does not fight the mode."""
-        if message.get("action") != ACTION_WIDE_SCREEN or message.get("device") != DEVICE_ID:
+        if message.get("action") != ACTION_WIDE_SCREEN or message.get("device") != self._model.id:
             return
 
         payload = message.get("payload") or {}
@@ -699,7 +773,7 @@ class D200XPlugin:
         self._apply_wide_mode()
 
     def _on_set_image(self, message: dict) -> None:
-        if message.get("device") not in (None, DEVICE_ID):
+        if message.get("device") not in (None, self._model.id):
             return
 
         controller = message.get("controller")
@@ -739,21 +813,21 @@ class D200XPlugin:
         index, pressed, dial = event
 
         if dial is not None:
-            if not (DIAL_BASE <= index < DIAL_BASE + ENCODERS):
+            if not (DIAL_BASE <= index < DIAL_BASE + self._model.encoders):
                 return
             position = index - DIAL_BASE
             if dial == 1:
-                payload = {"event": "encoderDown", "payload": {"device": DEVICE_ID, "position": position}}
+                payload = {"event": "encoderDown", "payload": {"device": self._model.id, "position": position}}
             elif dial == 0:
-                payload = {"event": "encoderUp", "payload": {"device": DEVICE_ID, "position": position}}
+                payload = {"event": "encoderUp", "payload": {"device": self._model.id, "position": position}}
             elif dial in (2, 3):
                 payload = {"event": "encoderChange", "payload": {
-                    "device": DEVICE_ID, "position": position, "ticks": -1 if dial == 2 else 1}}
+                    "device": self._model.id, "position": position, "ticks": -1 if dial == 2 else 1}}
             else:
                 return
-        elif index in SCREEN_KEYS or index in TOUCHPOINT_KEYS:
+        elif index in SCREEN_KEYS or index in TOUCHPOINT_KEYS[:self._model.touchpoints]:
             payload = {"event": "keyDown" if pressed else "keyUp",
-                       "payload": {"device": DEVICE_ID, "position": index}}
+                       "payload": {"device": self._model.id, "position": index}}
         else:
             logger.debug("Unmapped hardware index %d", index)
             return

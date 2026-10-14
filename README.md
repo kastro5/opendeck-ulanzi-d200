@@ -9,10 +9,26 @@ Ulanzi D200X show up as a normal deck inside OpenDeck, so any OpenDeck action
 This is not a stand-alone controller — it replaces the role of `ulanzi_manager`'s
 daemon while OpenDeck is running. Run one or the other, not both.
 
-Runs on **Linux and Windows**. Windows support is a fork of
-[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x);
-it has also been tested with the plain **D200**, which uses the same USB IDs and
-protocol (it just has no dials or side buttons, so those slots never fire).
+Runs on **Linux and Windows**, and drives both the **D200X** and the **D200H**
+(see [Choosing the model](#choosing-the-model)). This is a fork of
+[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x)
+that adds Windows and D200H support.
+
+## Choosing the model
+
+The D200X and D200H share one USB ID and protocol, and nothing the device
+reports tells them apart, so the plugin has to be told which one it is driving.
+The D200H has the same 14 screens but no dials or side buttons. Each model is
+registered under its own device ID (`ulanzi-d200x` / `ulanzi-d200h`), so OpenDeck
+keeps separate profiles for each.
+
+* **At install time** (Windows): `install.ps1 -Model d200h`. This is saved to
+  `defaults.json` in the plugin folder and kept on reinstall. The default is
+  `d200x`.
+* **From OpenDeck**: drag the **Wide screen** action onto a key, click it, and
+  pick the model in its settings. This overrides the installer's choice.
+  **Restart OpenDeck afterwards.** The plugin switches devices live, but
+  OpenDeck's UI stays on the device that disappeared and shows an empty grid.
 
 ## What it exposes
 
@@ -160,8 +176,9 @@ Building needs Python 3.10 or newer (python.org, `winget install Python.Python.3
 or scoop). From the repository:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1             # build into .venv and install
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild  # reinstall the last build
+powershell -ExecutionPolicy Bypass -File .\install.ps1                # build into .venv and install
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200h    # D200H owners
+powershell -ExecutionPolicy Bypass -File .install.ps1 -SkipBuild    # reinstall the last build
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 ```
 

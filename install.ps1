@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Install the Ulanzi D200X device plugin into OpenDeck on Windows.
+    Install the Ulanzi D200X / D200H device plugin into OpenDeck on Windows.
 
 .DESCRIPTION
     Builds the plugin into a standalone d200x_plugin.exe (PyInstaller, inside a
@@ -8,6 +8,7 @@
     then copies it into OpenDeck's plugins directory.
 
       .\install.ps1               build and install
+      .\install.ps1 -Model d200h  pick the model (d200x or d200h); remembered
       .\install.ps1 -SkipBuild    reinstall the last build
       .\install.ps1 -Uninstall
 
@@ -15,6 +16,8 @@
       powershell -ExecutionPolicy Bypass -File .\install.ps1
 #>
 param(
+    [ValidateSet('d200x', 'd200h')]
+    [string]$Model,
     [switch]$Uninstall,
     [switch]$SkipBuild
 )
@@ -99,12 +102,23 @@ if (Test-Path $VenvPython) {
     }
 }
 
+# Both models share one USB ID, so the plugin can't tell them apart: the model
+# it assumes on first launch comes from defaults.json. Keep the previous choice
+# across reinstalls unless -Model says otherwise.
+$Defaults = Join-Path $Dest 'defaults.json'
+if (-not $Model -and (Test-Path $Defaults)) {
+    try { $Model = (Get-Content $Defaults -Raw | ConvertFrom-Json).model } catch { }
+}
+if (-not $Model) { $Model = 'd200x' }
+
 Stop-Plugin
 if (Test-Path $Dest) { Remove-Item -Recurse -Force $Dest }
 Copy-Item -Recurse $Src $Dest
 Get-ChildItem $Dest -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
 Copy-Item $Exe $Dest
-Write-Host "Installed to $Dest"
+# No BOM: Windows PowerShell's -Encoding utf8 would add one.
+[IO.File]::WriteAllText($Defaults, (@{ model = $Model } | ConvertTo-Json -Compress))
+Write-Host "Installed to $Dest (model: $Model)"
 
 # Anything else talking to the deck will fight this plugin over it.
 $conflict = Join-Path $DestDir 'com.glmagalhaes.ulanzi.d200.sdPlugin'
@@ -117,4 +131,5 @@ if (Get-Process | Where-Object { $_.Name -match 'ulanzi' -and $_.Name -ne 'd200x
 }
 
 Write-Host ''
-Write-Host 'Restart OpenDeck. The D200X should appear in the device selector.'
+Write-Host 'Restart OpenDeck. The deck should appear in the device selector.'
+Write-Host 'A model chosen in the Wide screen action''s settings overrides the installer''s.'

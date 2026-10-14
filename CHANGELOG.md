@@ -10,7 +10,10 @@
   `d200x_plugin.exe` and installs it into OpenDeck. On Windows, output reports
   get the leading report ID byte the HID stack requires, interface 0 is opened
   explicitly, and the stats screen reads CPU and RAM through `psutil`.
-- Tested with the plain D200, which shares the D200X's USB IDs and protocol.
+- **D200H support.** It shares the D200X's USB ID and protocol but has no dials
+  or side buttons. Pick the model with `install.ps1 -Model d200h` or from the
+  Wide screen action's settings. Each model registers as its own OpenDeck
+  device, with its own profiles.
 
 ## 1.1.3 — 2026-08-05
 

@@ -62,11 +62,15 @@
 					clock: "Clock (built into the device)",
 					stats: "System monitor (CPU / RAM / GPU)",
 					off: "Off (black)",
+					model: "Model",
+					modelHint:
+						"Both models look the same to the computer, so pick yours here. " +
+						"Each one keeps its own profiles in OpenDeck.",
 					hint:
 						"Applies to the double-width screen at the bottom right, whether or not this " +
 						"action is on it. Drop any other action there instead and its icon is shown.",
 					warning:
-						"This action only does something on the Ulanzi D200X's bottom-right double key. " +
+						"This action only does something on the Ulanzi D200's bottom-right double key. " +
 						"The setting itself still applies.",
 				},
 				es: {
@@ -74,11 +78,15 @@
 					clock: "Reloj (integrado en el dispositivo)",
 					stats: "Monitor del sistema (CPU / RAM / GPU)",
 					off: "Apagada (en negro)",
+					model: "Modelo",
+					modelHint:
+						"Para el ordenador los dos modelos son idénticos, así que elige el tuyo aquí. " +
+						"Cada uno guarda sus propios perfiles en OpenDeck.",
 					hint:
 						"Se aplica a la pantalla doble de abajo a la derecha, esté o no esta acción encima. " +
 						"Si pones cualquier otra acción ahí, se muestra su icono.",
 					warning:
-						"Esta acción solo hace algo en la tecla doble de abajo a la derecha de la Ulanzi D200X. " +
+						"Esta acción solo hace algo en la tecla doble de abajo a la derecha de la Ulanzi D200. " +
 						"El ajuste sí se aplica igualmente.",
 				},
 			};
@@ -96,6 +104,8 @@
 				document.getElementById("label").textContent = strings.label;
 				document.getElementById("hint").textContent = strings.hint;
 				document.getElementById("warning").textContent = strings.warning;
+				document.getElementById("modelLabel").textContent = strings.model;
+				document.getElementById("modelHint").textContent = strings.modelHint;
 				for (const key of ["clock", "stats", "off"]) {
 					document.querySelector(`option[value="${key}"]`).textContent = strings[key];
 				}
@@ -106,6 +116,7 @@
 				}
 
 				const mode = document.getElementById("mode");
+				const model = document.getElementById("model");
 				let settings = {};
 
 				const websocket = new WebSocket("ws://localhost:" + inPort);
@@ -118,12 +129,14 @@
 					if (data.event != "didReceiveGlobalSettings") return;
 					settings = (data.payload && data.payload.settings) || {};
 					mode.value = settings.wideMode || "clock";
+					model.value = settings.model || "d200x";
 				};
 
-				mode.onchange = () => {
-					// Global, not per-instance: the wide screen has one mode whether
-					// or not this action happens to be sitting on it.
-					settings = Object.assign({}, settings, { wideMode: mode.value });
+				// Global, not per-instance: the wide screen has one mode whether
+				// or not this action happens to be sitting on it, and there is
+				// one deck.
+				const save = (change) => {
+					settings = Object.assign({}, settings, change);
 					websocket.send(
 						JSON.stringify({
 							event: "setGlobalSettings",
@@ -132,6 +145,8 @@
 						}),
 					);
 				};
+				mode.onchange = () => save({ wideMode: mode.value });
+				model.onchange = () => save({ model: model.value });
 			}
 		</script>
 	</head>
@@ -146,5 +161,13 @@
 		</div>
 		<p id="hint"></p>
 		<p id="warning"></p>
+		<div class="row">
+			<label id="modelLabel" for="model">Model</label>
+			<select id="model">
+				<option value="d200x">Ulanzi D200X (3 dials, 2 side buttons)</option>
+				<option value="d200h">Ulanzi D200H</option>
+			</select>
+		</div>
+		<p id="modelHint"></p>
 	</body>
 </html>

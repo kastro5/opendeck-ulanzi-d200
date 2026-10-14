@@ -10,7 +10,11 @@
   autónomo y lo instala en OpenDeck. En Windows, los reports de salida llevan el
   byte de report ID que exige la pila HID, se abre explícitamente la interfaz 0 y
   la pantalla de estadísticas lee CPU y RAM con `psutil`.
-- Probado con la D200 normal, que comparte IDs USB y protocolo con la D200X.
+- **Soporte para la D200H.** Comparte ID USB y protocolo con la D200X, pero no
+  tiene ruletas ni botones laterales. El modelo se elige con
+  `install.ps1 -Model d200h` o desde los ajustes de la acción Pantalla ancha.
+  Cada modelo se registra como un dispositivo distinto en OpenDeck, con sus
+  propios perfiles.
 
 ## 1.1.3 — 2026-08-05
 

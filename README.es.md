@@ -10,11 +10,28 @@ cualquier acción de OpenDeck, venga del plugin que venga.
 Esto no es un controlador independiente: mientras OpenDeck esté funcionando,
 sustituye al daemon de `ulanzi_manager`. Usa uno u otro, no los dos a la vez.
 
-Funciona en **Linux y Windows**. El soporte de Windows es un fork de
-[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x);
-también se ha probado con la **D200** normal, que usa los mismos IDs USB y el
-mismo protocolo (solo que no tiene ruletas ni botones laterales, así que esos
-huecos nunca se disparan).
+Funciona en **Linux y Windows**, y controla tanto la **D200X** como la
+**D200H** (ver [Elegir el modelo](#elegir-el-modelo)). Es un fork de
+[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x)
+que añade soporte para Windows y para la D200H.
+
+## Elegir el modelo
+
+La D200X y la D200H comparten ID USB y protocolo, y nada de lo que informa el
+dispositivo permite distinguirlas, así que hay que decirle al plugin cuál está
+controlando. La D200H tiene las mismas 14 pantallas, pero no tiene ruletas ni
+botones laterales. Cada modelo se registra con su propio ID de dispositivo
+(`ulanzi-d200x` / `ulanzi-d200h`), así que OpenDeck guarda perfiles separados
+para cada uno.
+
+* **Al instalar** (Windows): `install.ps1 -Model d200h`. Se guarda en
+  `defaults.json` dentro de la carpeta del plugin y se conserva al reinstalar.
+  Por defecto es `d200x`.
+* **Desde OpenDeck**: arrastra la acción **Pantalla ancha** a una tecla, haz
+  clic en ella y elige el modelo en sus ajustes. Esto tiene prioridad sobre lo
+  elegido en el instalador. **Reinicia OpenDeck después.** El plugin cambia de
+  dispositivo en caliente, pero la interfaz de OpenDeck se queda en el
+  dispositivo que ha desaparecido y muestra una cuadrícula vacía.
 
 ## Qué expone
 
@@ -166,8 +183,9 @@ Para compilarlo hace falta Python 3.10 o posterior (python.org,
 `winget install Python.Python.3.13` o scoop). Desde el repositorio:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1             # compila en .venv e instala
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild  # reinstala la última compilación
+powershell -ExecutionPolicy Bypass -File .\install.ps1                # compila en .venv e instala
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200h    # para la D200H
+powershell -ExecutionPolicy Bypass -File .install.ps1 -SkipBuild    # reinstala la última compilación
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 ```
 
