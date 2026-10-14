@@ -1,91 +1,99 @@
 ***English** · [Español](README.es.md)*
 
-# Ulanzi D200X plugin for OpenDeck
+# Ulanzi D200X / D200H plugin for OpenDeck
 
-A **device plugin** for [OpenDeck](https://github.com/nekename/OpenDeck): it makes the
-Ulanzi D200X show up as a normal deck inside OpenDeck, so any OpenDeck action
-(from any plugin) can be dropped onto its keys, side buttons and dials.
+Use a **Ulanzi D200X** or **D200H** stream controller with
+[OpenDeck](https://github.com/nekename/OpenDeck), the free, open-source Stream
+Deck software, on **Windows** or **Linux**.
 
-This is not a stand-alone controller — it replaces the role of `ulanzi_manager`'s
-daemon while OpenDeck is running. Run one or the other, not both.
+This is a *device plugin*: it makes the Ulanzi deck show up in OpenDeck like any
+Stream Deck, so you can drop any OpenDeck action, from any plugin, onto its keys,
+dials and side buttons. You don't need Ulanzi Studio.
 
-Runs on **Linux and Windows**, and drives both the **D200X** and the **D200H**
-(see [Choosing the model](#choosing-the-model)). This is a fork of
-[edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x)
-that adds Windows and D200H support.
+> This is a fork of [edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x),
+> which supports the D200X on Linux. This fork adds **Windows** support and the
+> **D200H**. Thanks to the original author for reverse-engineering the protocol.
 
-## Choosing the model
+## Contents
 
-The D200X and D200H share one USB ID and protocol, and nothing the device
-reports tells them apart, so the plugin has to be told which one it is driving.
-The D200H has the same 14 screens but no dials or side buttons. Each model is
-registered under its own device ID (`ulanzi-d200x` / `ulanzi-d200h`), so OpenDeck
-keeps separate profiles for each.
+- [Supported hardware](#supported-hardware)
+- [Install on Windows](#install-on-windows)
+- [Install on Linux](#install-on-linux)
+- [Choosing the model](#choosing-the-model)
+- [Using the deck in OpenDeck](#using-the-deck-in-opendeck)
+- [Known limitations](#known-limitations)
+- [Troubleshooting](#troubleshooting)
+- [How it works](#how-it-works)
+- [Credits and license](#credits-and-license)
 
-* **At install time** (Windows): `install.ps1 -Model d200h`. This is saved to
-  `defaults.json` in the plugin folder and kept on reinstall. The default is
-  `d200x`.
-* **From OpenDeck**: drag the **Wide screen** action onto a key, click it, and
-  pick the model in its settings. This overrides the installer's choice.
-  **Restart OpenDeck afterwards.** The plugin switches devices live, but
-  OpenDeck's UI stays on the device that disappeared and shows an empty grid.
+## Supported hardware
 
-## What it exposes
+| Model | Screens | Dials | Side buttons | Status |
+|---|---|---|---|---|
+| **D200X** | 13 keys + 1 wide screen | 3 (turn + press) | 2 | supported (upstream, Linux) |
+| **D200H** (deck dock) | 13 keys + 1 wide screen | — | — | supported, tested on Windows 11 |
 
-| Hardware | OpenDeck slot | Notes |
-|---|---|---|
-| 12 square screens (rows 1–2 and the first three of row 3) | Keypad 0–12 | 196×196 icons |
-| the double-width screen (bottom right) | Keypad 13 | see below |
-| — | Keypad 14 | unused: it is the right half of key 13 |
-| the 2 small side buttons | Touchpoint 1 & 2 (Keypad 15/16) | buttons only, no display |
-| the 3 rotary encoders | Encoder 0–2 | turn + press |
+Both models use the same USB ID (`2207:0019`) and the same protocol. They can't
+be told apart over USB, so you tell the plugin which one you have (see
+[Choosing the model](#choosing-the-model)).
 
-That is 14 screens in total, which is why the grid is declared as 5×3 with one
-dead cell — OpenDeck can only describe rectangular grids, so the merged screen
-occupies slot 13 and slot 14 is left empty on purpose.
-
-### The double-width screen (slot 13)
-
-What this screen shows is configurable. Drop the plugin's own **Wide screen**
-action on it and its property inspector offers:
-
-| Mode | What the screen shows |
+| OS | Status |
 |---|---|
-| **Clock** (default) | the clock built into the device |
-| **System monitor** | the firmware's CPU / RAM / GPU gauges |
-| **Off** | black |
+| Windows 10 / 11 | supported (this fork) |
+| Linux (native or Flatpak OpenDeck) | supported (upstream) |
+| macOS | untested |
 
-The setting is global rather than per-key: it applies to the wide screen whether
-or not the action is sitting on it, so it also decides what an **empty** slot 13
-shows.
+## Install on Windows
 
-Drop any **other** action there instead and the screen switches to image mode
-and renders that action's icon, letterboxed so it is not stretched.
+### 1. Prerequisites
 
-Either way the screen stays pressable and fires `Keypad 13`.
+- **OpenDeck** for Windows ([releases](https://github.com/nekename/OpenDeck/releases)).
+  Start it once so it creates its config folder.
+- **Python 3.10 or newer**, used only to *build* the plugin. Get it from
+  [python.org](https://www.python.org/downloads/) or run
+  `winget install Python.Python.3.13`. The built plugin is a standalone `.exe`,
+  so OpenDeck doesn't need Python at runtime.
+- **Quit Ulanzi Studio** (`UlanziDeck.exe`, in the system tray) and turn off its
+  autostart. It drives the same device and would fight OpenDeck over it.
 
-The device does not measure the host: the firmware draws whatever percentages
-the last status update carried. The plugin samples `/proc/stat` and
-`/proc/meminfo` for CPU and RAM, and `gpu_busy_percent` (amdgpu) or `nvidia-smi`
-for the GPU — with neither available the GPU gauge stays at zero.
+No driver is needed. Windows lets any user open the deck.
 
-## Cosmetic limitations
+### 2. Build and install
 
-Two things about the on-screen layout cannot be fixed from here, because a
-device plugin can only declare `rows`, `columns`, `encoders`, `touchpoints`,
-`infobars` and `type` — everything else is hardcoded in OpenDeck's frontend
-(`src/components/DeviceView.svelte`):
+Clone or download this repository, open PowerShell in its folder, and run:
 
-* The two side buttons render full size in a row of their own, rather than at
-  half size centred alongside the dials.
-* The double-width screen shows as slot 13 plus an empty slot 14, rather than as
-  one key spanning both cells and the gap between them.
+```powershell
+# D200H owners:
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200h
 
-Both are pure layout. `Key.svelte` already supports rectangular canvases and
-scaling (it uses them for the Stream Deck Neo's infobar), so changing this would
-mean patching and rebuilding OpenDeck, or an upstream feature request.
+# D200X owners:
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200x
+```
 
-## Requirements
+The script:
+
+1. Creates a private Python environment in `.venv` and installs `hidapi`,
+   `pillow`, `websockets`, `psutil` and `pyinstaller` into it. Your system Python
+   is left alone.
+2. Builds `dist\d200x_plugin.exe`.
+3. Copies the plugin to `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`.
+4. Warns you if Ulanzi Studio or another D200 plugin is running.
+
+### 3. Restart OpenDeck
+
+Quit OpenDeck from the tray icon and start it again. The deck appears in the
+device selector at the top left, as **Ulanzi D200H** or **Ulanzi D200X**.
+
+### Other installer options
+
+```powershell
+.\install.ps1 -SkipBuild    # reinstall the last build without rebuilding
+.\install.ps1 -Uninstall    # remove the plugin from OpenDeck
+```
+
+`-Model` is remembered, so later reinstalls keep it unless you pass it again.
+
+## Install on Linux
 
 Python 3 with three packages:
 
@@ -96,189 +104,227 @@ sudo pacman -S python-hidapi python-pillow python-websockets
 sudo apt install python3-hid python3-pil python3-websockets
 ```
 
-If you run OpenDeck as a Flatpak, install them **on the host**, not inside the
-sandbox: the plugin re-launches itself on the host with `flatpak-spawn --host`,
-because neither `/dev/hidraw*` nor `hidapi` is reachable from inside the sandbox.
+If OpenDeck runs as a Flatpak, install these **on the host**. The plugin
+re-launches itself there with `flatpak-spawn --host`.
 
-## Device permissions (udev) — required
-
-By default `/dev/hidraw*` is readable only by root, so **the plugin cannot see
-the D200X until a udev rule grants access**. This is the single most common
-reason for "the device does not show up in OpenDeck".
-
-OpenDeck installs a `40-streamdeck.rules` of its own, but it does *not* help
-here: it only covers Elgato's vendor ID (`0fd9`), not Ulanzi's (`2207`).
+**A udev rule is required.** By default `/dev/hidraw*` is root-only, so the
+plugin can't see the deck until the rule grants access:
 
 ```sh
 sudo cp 60-ulanzi-d200x.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
-```
+# then unplug and replug the deck
 
-The rule is a single line, matching the form OpenDeck ships for its own devices:
-
-```
-KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2207", ATTRS{idProduct}=="0019", MODE="0660", TAG+="uaccess"
-```
-
-No `SUBSYSTEM=="usb"` rule is needed — `python-hidapi` uses the hidraw backend
-(`libhidapi-hidraw.so`), so only the hidraw node is ever opened. Add one only if
-you have deliberately built hidapi against libusb.
-
-udev rules are applied when a device event fires, so **if the D200X was already
-plugged in, unplug and replug it** (or reboot).
-
-### Verifying
-
-```sh
-$ ls -l $(python3 -c "import hid;print(' '.join(d['path'].decode() for d in hid.enumerate(0x2207,0x0019)))")
-crw-rw----+ 1 root root 243, 5 ... /dev/hidraw5
-crw-rw----+ 1 root root 243, 6 ... /dev/hidraw6
-```
-
-The device exposes **two** hidraw interfaces and the rule matches both; the
-plugin uses the first one. What matters is the trailing `+`: that is the
-`uaccess` ACL giving your session read/write access. Confirm it with
-`getfacl /dev/hidraw5` — you should see `user:<you>:rw-`.
-
-`install.sh` performs this check for you and tells you if the node is not
-writable.
-
-If your system does not use systemd-logind, `uaccess` does nothing. Add
-`GROUP="input"` to the rule and make sure you are in that group.
-
-### Why not `MODE="0666"`
-
-Plenty of guides use `MODE="0666"`, which works but makes the device
-world-readable and world-writable — any local process can then read your key
-presses and drive the screens. `TAG+="uaccess"` grants access only to the user
-logged in at the local seat, which is both safer and the modern convention.
-
-## Install
-
-```sh
-sudo cp 60-ulanzi-d200x.rules /etc/udev/rules.d/   # see above; do this first
-sudo udevadm control --reload-rules && sudo udevadm trigger
-
-./install.sh          # copy into OpenDeck's plugins directory
-./install.sh --link   # symlink instead, for development
+./install.sh             # copy into OpenDeck's plugins directory
+./install.sh --link      # symlink instead, for development
 ./install.sh --uninstall
 ```
 
 Then restart OpenDeck.
 
-## Windows
+The rule uses `TAG+="uaccess"`, which gives the logged-in user access, rather
+than the world-writable `MODE="0666"` many guides suggest. Without
+systemd-logind, add `GROUP="input"` to the rule and join that group.
+`install.sh` checks that the device node is writable and tells you if it isn't.
 
-No udev rule or driver is needed: Windows lets any user open the deck. The
-plugin ships as a self-contained `d200x_plugin.exe`, built with PyInstaller, so
-OpenDeck does not depend on a Python install at runtime.
+On Linux, choose the model from OpenDeck, as described below.
 
-Building needs Python 3.10 or newer (python.org, `winget install Python.Python.3.13`,
-or scoop). From the repository:
+## Choosing the model
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1                # build into .venv and install
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Model d200h    # D200H owners
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipBuild    # reinstall the last build
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+The plugin needs to know whether it's driving a D200X (dials and side buttons)
+or a D200H (keys only). There are two ways to set it:
+
+- **At install time (Windows):** `install.ps1 -Model d200h` or `-Model d200x`.
+  This writes `defaults.json` next to the plugin. Without it, the plugin
+  assumes D200X.
+- **From inside OpenDeck:**
+  1. Find **Wide screen** under the *Ulanzi D200* category in the action list on
+     the right.
+  2. **Drag** it onto a key. Clicking it in the list does nothing.
+  3. Click that key in the grid. Its settings appear below the grid.
+  4. Choose the model under **Model**.
+  5. **Restart OpenDeck.** The plugin switches immediately, but OpenDeck's
+     editor stays on the old device and shows an empty grid until it restarts.
+
+A model chosen in OpenDeck overrides the installer's. Each model is its own
+device in OpenDeck (`ulanzi-d200x` / `ulanzi-d200h`) with its own profiles, so
+switching doesn't carry your key setup across.
+
+## Using the deck in OpenDeck
+
+The deck appears as a 5 × 3 grid:
+
+```
+┌────┬────┬────┬────┬────┐
+│  0 │  1 │  2 │  3 │  4 │
+├────┼────┼────┼────┼────┤
+│  5 │  6 │  7 │  8 │  9 │
+├────┼────┼────┼────┴────┤
+│ 10 │ 11 │ 12 │13 (wide)│   ← slot 14 is the right half of 13 and does nothing
+└────┴────┴────┴─────────┘
+  D200X only:  ◯ dial 1   ◯ dial 2   ◯ dial 3     ▭ side 1   ▭ side 2
 ```
 
-The plugin goes to `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`; then
-restart OpenDeck. **Quit Ulanzi Studio** (`UlanziDeck.exe`) and stop it from
-starting with Windows, since it drives the same device. The installer warns if
-it is running.
+| On the deck | In OpenDeck | Notes |
+|---|---|---|
+| 13 square screens | keys 0–12 | icons scaled to the 196×196 screen |
+| the wide screen (bottom right) | **key 13** | put its action here, not on 14 |
+| — | key 14 | unused, the right half of the wide screen |
+| 3 dials (D200X) | encoders 1–3 | turn and press |
+| 2 side buttons (D200X) | touchpoints 1–2 | buttons only, no display |
 
-The plugin log is `%LOCALAPPDATA%\opendeck\logs\plugins\com.ulanzi.d200x.sdPlugin.log`.
+### The wide screen
 
-Differences from Linux:
+By default the wide screen shows the deck's own **clock**. To change it, drag the
+**Wide screen** action onto it, click it, and pick a mode:
 
-* The device has no report IDs, so on Windows every output report is sent with
-  a leading `0x00` byte (hidapi would otherwise take the `0x7c` header as the
-  ID). Interface 0 is opened explicitly, since interface 1 is a boot keyboard that
-  Windows keeps locked.
-* CPU and RAM for the stats screen come from `psutil`. GPU load comes only from
-  `nvidia-smi`, so on AMD or Intel graphics the GPU gauge stays at 0.
+| Mode | What the screen shows |
+|---|---|
+| **Clock** (default) | the clock built into the device |
+| **System monitor** | CPU, RAM and GPU gauges, fed by the plugin every 2 s |
+| **Off** | black |
 
-## How it works
+The setting is global: it applies even when the action isn't on the wide screen.
+If you put any **other** action on key 13, the wide screen shows that action's
+icon instead, letterboxed so it isn't stretched. Either way, pressing the wide
+screen fires key 13.
 
-OpenDeck renders each key to a JPEG data URL and pushes it with `setImage`. The
-D200X does not accept per-key images: the firmware only takes a **ZIP bundle**
-containing `manifest.json` plus every icon, written over raw HID in 1024-byte
-packets. So the plugin:
+The system monitor gets CPU and RAM from the OS. GPU load comes from
+`nvidia-smi` on NVIDIA cards, or from `gpu_busy_percent` on Linux AMD cards. On
+other GPUs the gauge reads 0.
 
-1. Decodes each `setImage`, scales it to 196×196 (392×196 squeezed for the wide
-   screen) and caches it.
-2. Coalesces bursts of updates (`FLUSH_DEBOUNCE`) and rate-limits bundles
-   (`MIN_BUNDLE_INTERVAL`) so the firmware is not flooded.
-3. Rebuilds the bundle, padding `dummy.txt` until no `0x00`/`0x7c` byte lands on
-   a packet boundary — a firmware parsing bug the original daemon hits too.
+### Brightness
 
-A page full of live keys (a clock, a system monitor) means a bundle every few
-seconds, and anything the firmware repaints in that moment flickers. So when the
-firmware is the one drawing the wide screen — clock or system monitor — that
-cell gets no manifest entry at all, and the mode is only restated when it
-actually changes. Re-sending it on a timer makes the firmware repaint the clock,
-which reads as a blink.
+OpenDeck's brightness setting and the **Device Brightness** action are passed straight to the deck.
 
-The device keeps time by itself, so seeding the clock once when it connects is
-enough. Only the system monitor needs feeding, every two seconds.
+## Known limitations
 
-Input reports are decoded on the same HID thread and forwarded as `keyDown` /
-`keyUp` / `encoderChange` / `encoderDown` / `encoderUp`.
-
-### Reconnect handling
-
-While the D200X digests a large bundle it briefly resets its USB interface,
-which is indistinguishable from an unplug. The HID worker therefore reopens the
-handle silently and only reports a disconnect to OpenDeck after the device has
-been missing for 30 seconds. On reacquire it re-sends its cached bundle rather
-than asking OpenDeck to re-render — requesting a rerender on every reset is what
-turned this into an infinite loop in an earlier attempt.
+- **The wide screen can't be one big key in OpenDeck's editor.** OpenDeck draws
+  every device as a uniform grid of square keys, and a plugin can't merge cells.
+  So the wide screen is key 13, with an empty key 14 beside it. On the deck it's
+  one screen. Fixing this needs a change in OpenDeck itself
+  (`src/components/DeviceView.svelte`).
+- **D200X side buttons get their own row** in the editor, at full size, rather
+  than sitting beside the dials. This is the same OpenDeck layout limitation.
+- **Icons are re-sent as one bundle.** The firmware can't update a single key, so
+  every change re-sends all icons (see [How it works](#how-it-works)). A page with
+  many fast-changing keys updates at most every 1.5 s.
+- **Only one program can drive the deck.** Close Ulanzi Studio, and don't install
+  a second D200 plugin such as `com.glmagalhaes.ulanzi.d200.sdPlugin`.
 
 ## Troubleshooting
 
-**The device does not appear in OpenDeck.** In order of likelihood:
+**The deck doesn't appear in OpenDeck**
 
-1. **Missing udev rule** — see [Device permissions](#device-permissions-udev--required).
-   Remember to replug the device afterwards. This is by far the usual cause.
-2. **Missing Python packages.** `install.sh` checks for these and names them.
-3. **Plugin installed in the wrong directory.** A native OpenDeck reads
-   `~/.config/opendeck/plugins/`, the Flatpak reads
-   `~/.var/app/me.amankhanna.opendeck/config/opendeck/plugins/`. `install.sh`
-   picks the one belonging to the OpenDeck that is running.
+- *Windows:* make sure Ulanzi Studio is fully closed (check the tray), then
+  restart OpenDeck. Check the plugin log (below) for `Deck connected`.
+- *Linux:* this is almost always the udev rule. Install it, then unplug and
+  replug the deck.
+- Make sure the plugin is in OpenDeck's plugins folder (`%APPDATA%\opendeck\plugins`
+  on Windows, `~/.config/opendeck/plugins` on Linux) and that OpenDeck was
+  restarted after installing.
 
-**The device appears but the screens stay blank.** Check the log for
-`Pushed icon bundle`. If that line never appears, OpenDeck is not sending
-images; if it appears but the screens do not change, something else is talking
-to the device — make sure `ulanzi_manager`'s daemon is not running.
+**The grid is empty after changing the model.** Restart OpenDeck. Its editor
+doesn't follow a device that is swapped while it is running.
 
-**Only one process may drive the device.** If you have also installed another
-D200-family device plugin (for example `com.glmagalhaes.ulanzi.d200.sdPlugin`),
-disable one of them: they open the same hidraw node and overwrite each other's
-screens. `install.sh` warns you if it finds one.
+**Wrong layout (dials shown on a D200H, or none on a D200X).** Set the model:
+see [Choosing the model](#choosing-the-model).
 
-## Debugging
+**The screens don't change.** Look for `Pushed icon bundle` in the log. If it's
+there but the deck doesn't update, another program is talking to the deck.
 
-The plugin logs to stderr, which OpenDeck captures. The path depends on how
-OpenDeck was installed:
+**The GPU gauge is stuck at 0.** Your GPU isn't NVIDIA (or Linux AMD). See
+[The wide screen](#the-wide-screen).
 
-```sh
-# native package (opendeck-bin and friends)
-tail -f ~/.local/share/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log
-# Flatpak
-tail -f ~/.var/app/me.amankhanna.opendeck/data/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log
-```
+### Logs
 
-Set `D200X_DEBUG=1` in the environment for verbose output.
+| Platform | Plugin log |
+|---|---|
+| Windows | `%LOCALAPPDATA%\opendeck\logs\plugins\com.ulanzi.d200x.sdPlugin.log` |
+| Linux (native) | `~/.local/share/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log` |
+| Linux (Flatpak) | `~/.var/app/me.amankhanna.opendeck/data/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log` |
 
-## Protocol notes
+Set the environment variable `D200X_DEBUG=1` before starting OpenDeck for verbose
+logs.
+
+## How it works
+
+The whole plugin is one Python file,
+[`d200x_plugin.py`](com.ulanzi.d200x.sdPlugin/d200x_plugin.py). OpenDeck starts
+it and talks to it over a websocket using the Stream Deck plugin protocol. The
+plugin talks to the deck over raw USB HID.
+
+**Images.** OpenDeck renders each key as a JPEG and sends it with `setImage`.
+The deck's firmware doesn't accept per-key images. It only takes a **ZIP
+bundle** containing a `manifest.json` and every icon, sent in 1024-byte packets.
+So the plugin:
+
+1. scales each image to 196×196 and caches it;
+2. waits for bursts of updates to settle (0.35 s) and sends at most one bundle
+   every 1.5 s;
+3. pads the ZIP until no `0x00` or `0x7c` byte lands on a packet boundary, which
+   works around a firmware parsing bug.
+
+While the firmware draws the wide screen itself (clock or system monitor), that
+cell is left out of the bundle, so it doesn't flicker on every update.
+
+**Input.** Key presses, dial turns and dial presses arrive as HID input reports.
+They're forwarded to OpenDeck as `keyDown`/`keyUp` and
+`encoderChange`/`encoderDown`/`encoderUp`.
+
+**Reconnects.** The deck briefly resets its USB connection while it unpacks a
+large bundle. The plugin reopens the device quietly and only tells OpenDeck the
+deck is gone after 30 s of absence. On reconnect it re-sends its cached icons.
+
+### What the Windows port changed
+
+- **Report ID byte.** The deck's HID descriptor has no report IDs and 1024-byte
+  reports. Linux (hidraw) writes the 1024 bytes as-is. Windows requires a leading
+  report-ID byte, so every write is sent as `0x00` + 1024 bytes. Without it,
+  hidapi takes the `0x7c` header as the ID and the payload shifts by one byte.
+  Reads need no change, because Windows strips the ID.
+- **Interface choice.** The deck has two HID interfaces: interface 0 is the
+  vendor channel, and interface 1 is a boot keyboard that Windows locks. The
+  plugin opens interface 0 explicitly.
+- **System stats.** `/proc` doesn't exist on Windows, so CPU and RAM come from
+  `psutil`.
+- **Packaging.** OpenDeck on Windows launches a plugin's `CodePathWin` directly,
+  so the plugin is shipped as a console `.exe` built with PyInstaller. Its stderr
+  goes to OpenDeck's plugin log.
+
+### Protocol reference
+
+Every packet is 1024 bytes: header `7c 7c`, a 2-byte big-endian command, a
+4-byte little-endian payload length, then the payload.
 
 | Command | Value | Purpose |
 |---|---|---|
-| `SET_BUTTONS` | `0x0001` | icon/manifest ZIP bundle |
-| `SET_SMALL_WINDOW` | `0x0006` | wide screen mode: `0` stats, `1` clock, `2` image |
-| `SET_BRIGHTNESS` | `0x000a` | 0–100 |
-| `SET_LABEL_STYLE` | `0x000b` | disabled here — OpenDeck bakes titles into the image |
-| `IN_BUTTON` | `0x0101` / `0x0102` | key and dial input |
+| `SET_BUTTONS` | `0x0001` | icon + manifest ZIP bundle |
+| `SET_SMALL_WINDOW` | `0x0006` | wide screen: `mode\|cpu\|ram\|HH:MM:SS\|gpu`; mode `0` stats, `1` clock, `2` image |
+| `SET_BRIGHTNESS` | `0x000a` | `0`–`100`, as ASCII |
+| `SET_LABEL_STYLE` | `0x000b` | label font and colour (titles are hidden; OpenDeck draws them into the image) |
+| `IN_BUTTON` | `0x0101` / `0x0102` | input from the deck |
 
-Hardware indices: screens `0–13`, side buttons `15`/`16`, dials `17`/`18`/`19`
-(dial event byte: `0` release, `1` press, `2` turn left, `3` turn right).
+Input hardware indices: screens `0`–`13`, side buttons `15`/`16`, dials
+`17`/`18`/`19`. Dial event byte: `0` release, `1` press, `2` turn left,
+`3` turn right.
+
+## Repository layout
+
+| Path | What it is |
+|---|---|
+| `com.ulanzi.d200x.sdPlugin/` | the plugin: `d200x_plugin.py`, `manifest.json`, icons, settings panel |
+| `install.ps1` | Windows build + install script |
+| `install.sh` | Linux install script |
+| `60-ulanzi-d200x.rules` | Linux udev rule |
+| `CHANGELOG.md` | release notes |
+
+## Credits and license
+
+- Original plugin and protocol work:
+  [edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x).
+- Windows port and D200H support: this fork.
+- [OpenDeck](https://github.com/nekename/OpenDeck) by nekename.
+
+Licensed under the **GNU GPL v3.0**, the same as the original. See
+[LICENSE](LICENSE). Not affiliated with Ulanzi.
