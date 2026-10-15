@@ -14,6 +14,7 @@ necesitas Ulanzi Studio.
 > Es un fork de [edubox/opendeck-ulanzi-d200x](https://github.com/edubox/opendeck-ulanzi-d200x),
 > que soporta la D200X en Linux. Este fork añade soporte para **Windows** y para
 > la **D200H**. Gracias al autor original por descifrar el protocolo.
+> Desde la 1.3.0 tiene su propio identificador de plugin, `dev.kastro5.ulanzi-d200`.
 
 ## Contenido
 
@@ -56,12 +57,18 @@ No necesitas Python.
 2. Instala [OpenDeck](https://github.com/nekename/OpenDeck/releases) y ábrelo
    una vez.
 3. Desde la [última versión](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest),
-   descarga el zip de tu modelo: `opendeck-ulanzi-d200h-windows-…zip` o
-   `opendeck-ulanzi-d200x-windows-…zip`.
+   descarga el zip de tu modelo: `opendeck-ulanzi-d200h-…zip` o
+   `opendeck-ulanzi-d200x-…zip`.
 4. Descomprímelo en `%APPDATA%\opendeck\plugins\` (pega esa ruta en la barra de
    direcciones del Explorador). Debe quedar
-   `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin\d200x_plugin.exe`.
+   `%APPDATA%\opendeck\plugins\dev.kastro5.ulanzi-d200.sdPlugin\d200x_plugin.exe`.
 5. Cierra OpenDeck desde la bandeja y vuelve a abrirlo.
+
+**¿Actualizas desde una versión anterior a la 1.3.0?** La carpeta del plugin
+pasó de `com.ulanzi.d200x.sdPlugin` a `dev.kastro5.ulanzi-d200.sdPlugin`. Borra
+la carpeta antigua (o quita el plugin antiguo en la pestaña Plugins de OpenDeck),
+porque los dos reclamarían el deck. Los ajustes de modelo y de pantalla ancha se
+recuperan solos, y tus teclas se quedan como estaban.
 
 Si Windows SmartScreen o tu antivirus marcan `d200x_plugin.exe`, es porque se
 trata de una compilación de PyInstaller sin firmar. Si prefieres no fiarte de un
@@ -101,7 +108,7 @@ El script:
    `pillow`, `websockets`, `psutil` y `pyinstaller`. No toca el Python de tu
    sistema.
 2. Compila `dist\d200x_plugin.exe`.
-3. Copia el plugin a `%APPDATA%\opendeck\plugins\com.ulanzi.d200x.sdPlugin`.
+3. Copia el plugin a `%APPDATA%\opendeck\plugins\dev.kastro5.ulanzi-d200.sdPlugin`.
 4. Te avisa si Ulanzi Studio u otro plugin de D200 está en marcha.
 
 #### 3. Reinicia OpenDeck
@@ -147,7 +154,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ./install.sh --uninstall
 ```
 
-Después reinicia OpenDeck.
+Después reinicia OpenDeck. En lugar de `install.sh` también puedes descomprimir
+el zip de tu modelo de la [última versión](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest)
+en `~/.config/opendeck/plugins/`; también lleva el lanzador de Linux.
 
 La regla usa `TAG+="uaccess"`, que da acceso al usuario con sesión iniciada, en
 vez del `MODE="0666"` que sugieren muchas guías y que deja el dispositivo
@@ -281,9 +290,9 @@ Ver [La pantalla ancha](#la-pantalla-ancha).
 
 | Plataforma | Log del plugin |
 |---|---|
-| Windows | `%LOCALAPPDATA%\opendeck\logs\plugins\com.ulanzi.d200x.sdPlugin.log` |
-| Linux (nativo) | `~/.local/share/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log` |
-| Linux (Flatpak) | `~/.var/app/me.amankhanna.opendeck/data/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log` |
+| Windows | `%LOCALAPPDATA%\opendeck\logs\plugins\dev.kastro5.ulanzi-d200.sdPlugin.log` |
+| Linux (nativo) | `~/.local/share/opendeck/logs/plugins/dev.kastro5.ulanzi-d200.sdPlugin.log` |
+| Linux (Flatpak) | `~/.var/app/me.amankhanna.opendeck/data/opendeck/logs/plugins/dev.kastro5.ulanzi-d200.sdPlugin.log` |
 
 Define la variable de entorno `D200X_DEBUG=1` antes de abrir OpenDeck para
 obtener logs detallados.
@@ -291,7 +300,7 @@ obtener logs detallados.
 ## Cómo funciona
 
 Todo el plugin es un único archivo de Python,
-[`d200x_plugin.py`](com.ulanzi.d200x.sdPlugin/d200x_plugin.py). OpenDeck lo
+[`d200x_plugin.py`](dev.kastro5.ulanzi-d200.sdPlugin/d200x_plugin.py). OpenDeck lo
 arranca y se comunica con él por websocket usando el protocolo de plugins de
 Stream Deck. El plugin habla con el deck por HID USB en bruto.
 
@@ -364,7 +373,7 @@ datos.
 
 | Ruta | Qué es |
 |---|---|
-| `com.ulanzi.d200x.sdPlugin/` | el plugin: `d200x_plugin.py`, `manifest.json`, iconos, panel de ajustes |
+| `dev.kastro5.ulanzi-d200.sdPlugin/` | el plugin: `d200x_plugin.py`, `manifest.json`, iconos, panel de ajustes |
 | `install.ps1` | script de compilación e instalación para Windows |
 | `requirements-build.txt` | dependencias de compilación fijadas, compartidas por `install.ps1` y la CI |
 | `scripts/package_release.py` | empaqueta el exe en los zips de cada modelo |
@@ -377,7 +386,7 @@ datos.
 
 Las versiones las compila GitHub Actions, no el PC de quien desarrolla:
 
-1. Sube `Version` en `com.ulanzi.d200x.sdPlugin/manifest.json` y añade una
+1. Sube `Version` en `dev.kastro5.ulanzi-d200.sdPlugin/manifest.json` y añade una
    entrada `## <versión>` a `CHANGELOG.md` (y a `CHANGELOG.es.md`). La entrada
    en inglés se usa como notas de la versión.
 2. Haz commit, crea la etiqueta y súbela:

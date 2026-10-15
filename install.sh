@@ -6,7 +6,9 @@
 #   ./install.sh --uninstall
 set -euo pipefail
 
-PLUGIN="com.ulanzi.d200x.sdPlugin"
+PLUGIN="dev.kastro5.ulanzi-d200.sdPlugin"
+# Before 1.3.0 the plugin lived under the upstream bundle ID; both would claim the deck.
+LEGACY_PLUGIN="com.ulanzi.d200x.sdPlugin"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$HERE/$PLUGIN"
 RULE_SRC="$HERE/60-ulanzi-d200x.rules"
@@ -41,7 +43,7 @@ mkdir -p "$DEST_DIR"
 DEST="$DEST_DIR/$PLUGIN"
 
 if [[ "${1:-}" == "--uninstall" ]]; then
-	rm -rf "$DEST"
+	rm -rf "$DEST" "$DEST_DIR/$LEGACY_PLUGIN"
 	echo "Removed $DEST"
 	echo "Restart OpenDeck to finish."
 	exit 0
@@ -96,6 +98,10 @@ denied*)
 esac
 
 rm -rf "$DEST"
+if [[ -e "$DEST_DIR/$LEGACY_PLUGIN" ]]; then
+	rm -rf "$DEST_DIR/$LEGACY_PLUGIN"
+	echo "Removed the pre-1.3.0 copy ($LEGACY_PLUGIN); its settings carry over on first start."
+fi
 if [[ "${1:-}" == "--link" ]]; then
 	ln -s "$SRC" "$DEST"
 	echo "Linked $SRC -> $DEST"

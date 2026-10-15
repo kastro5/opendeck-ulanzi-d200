@@ -1,15 +1,15 @@
 {
 	"Name": "Ulanzi D200X / D200H",
 	"Description": "Device support for the Ulanzi D200X (14 LCD keys, 2 side buttons, 3 rotary encoders) and D200H (14 LCD keys).",
-	"Author": "Ulanzi Deck Linux",
-	"Version": "1.2.2",
+	"Author": "kastro5",
+	"Version": "1.3.0",
 	"Icon": "assets/icon",
 	"Category": "Ulanzi D200",
 	"CategoryIcon": "assets/icon",
-	"URL": "https://github.com/",
+	"URL": "https://github.com/kastro5/opendeck-ulanzi-d200",
 	"Actions": [
 		{
-			"UUID": "com.ulanzi.d200x.widescreen",
+			"UUID": "dev.kastro5.ulanzi-d200.widescreen",
 			"Name": "Wide screen",
 			"Tooltip": "Choose what the double-width screen shows (clock, system monitor or nothing) and which D200 model this is",
 			"Icon": "assets/widescreen",

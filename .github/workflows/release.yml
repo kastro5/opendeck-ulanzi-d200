@@ -37,7 +37,7 @@ jobs:
         run: >
           python -m PyInstaller --noconfirm --clean --onefile --log-level WARN
           --name d200x_plugin --distpath dist --workpath build --specpath build
-          com.ulanzi.d200x.sdPlugin/d200x_plugin.py
+          dev.kastro5.ulanzi-d200.sdPlugin/d200x_plugin.py
 
       - name: Smoke test
         # With nothing listening on the port, the plugin must get as far as the

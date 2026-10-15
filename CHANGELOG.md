@@ -2,7 +2,22 @@
 
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-10-15
+
+### Changed
+
+- **New bundle ID: `dev.kastro5.ulanzi-d200`** (was `com.ulanzi.d200x`, inherited
+  from the upstream project and named after Ulanzi itself). It prepares the
+  plugin for OpenDeck's plugin catalogue. Device IDs are unchanged, so profiles
+  and keys stay as they are. On first start the plugin carries over the old
+  global settings (model and wide screen mode). The installers remove the old
+  copy; otherwise remove `com.ulanzi.d200x.sdPlugin` in OpenDeck's Plugins tab,
+  because both would claim the deck. A *Wide screen* action placed on a key must
+  be added again.
+- **Author is now `kastro5`**; the README credits the upstream project.
+- **Release zips work on Windows and Linux.** Each model's zip carries the
+  Windows exe and the Linux launcher; they're named
+  `opendeck-ulanzi-<model>-v<version>.zip`.
 
 ### Added
 

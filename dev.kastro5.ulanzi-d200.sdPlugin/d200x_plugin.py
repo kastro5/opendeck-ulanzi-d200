@@ -106,7 +106,7 @@ WINDOW_MODE_IMAGE = 2
 
 # What the wide screen shows when no other action occupies it. Stored in the
 # plugin's global settings and edited from the "Wide screen" property inspector.
-ACTION_WIDE_SCREEN = "com.ulanzi.d200x.widescreen"
+ACTION_WIDE_SCREEN = "dev.kastro5.ulanzi-d200.widescreen"
 WIDE_SETTING = "wideMode"
 WIDE_MODES = {
     "clock": WINDOW_MODE_CLOCK,   # the firmware's own clock
@@ -231,6 +231,26 @@ def default_model() -> str:
 
 
 MODEL_DEFAULT = default_model()
+
+# Before 1.3.0 the plugin used the upstream bundle ID; OpenDeck keeps global
+# settings per bundle ID, so the first start under the new ID carries them over.
+LEGACY_PLUGIN = "com.ulanzi.d200x.sdPlugin"
+
+
+def legacy_settings() -> dict:
+    """The old plugin's global settings, from OpenDeck's config dir (<config>/plugins/<us>)."""
+    config = os.path.dirname(os.path.dirname(plugin_dir()))
+    try:
+        with open(os.path.join(config, "settings", LEGACY_PLUGIN + ".json"), encoding="utf-8") as handle:
+            settings = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return settings if isinstance(settings, dict) else {}
+
+
+def legacy_plugin_installed() -> bool:
+    """The old copy would claim the same USB device; both cannot run."""
+    return os.path.isdir(os.path.join(os.path.dirname(plugin_dir()), LEGACY_PLUGIN))
 
 # --------------------------------------------------------------------------- #
 # Timing
@@ -818,6 +838,12 @@ class D200XPlugin:
             logger.debug("Ignoring event %s", event)
 
     def _on_global_settings(self, settings: dict) -> None:
+        if not settings and not self._settings_seen:
+            settings = legacy_settings()
+            if settings:
+                logger.info("Carried over the settings of %s", LEGACY_PLUGIN)
+                self._loop.create_task(self._send(
+                    {"event": "setGlobalSettings", "context": self._uuid, "payload": settings}))
         model = MODELS.get(str(settings.get(MODEL_SETTING, MODEL_DEFAULT)).lower(),
                            MODELS[MODEL_DEFAULT])
         if model is not self._model:
@@ -1063,6 +1089,10 @@ def main() -> int:
             logger.error("Install them on the host, e.g. "
                          "sudo pacman -S python-hidapi python-pillow python-websockets")
         return 1
+
+    if legacy_plugin_installed():
+        logger.warning("The pre-1.3.0 copy of this plugin (%s) is still installed and claims the same "
+                       "deck; remove it from OpenDeck's Plugins tab and restart OpenDeck.", LEGACY_PLUGIN)
 
     args = parse_args(sys.argv[1:])
     plugin = D200XPlugin(args.port, args.uuid, args.register_event)

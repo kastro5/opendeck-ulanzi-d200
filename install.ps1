@@ -24,11 +24,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$Plugin = 'com.ulanzi.d200x.sdPlugin'
+$Plugin = 'dev.kastro5.ulanzi-d200.sdPlugin'
+# Before 1.3.0 the plugin lived under the upstream bundle ID; both would claim the deck.
+$LegacyPlugin = 'com.ulanzi.d200x.sdPlugin'
 $Here = $PSScriptRoot
 $Src = Join-Path $Here $Plugin
 $DestDir = Join-Path $env:APPDATA 'opendeck\plugins'
 $Dest = Join-Path $DestDir $Plugin
+$LegacyDest = Join-Path $DestDir $LegacyPlugin
 $Venv = Join-Path $Here '.venv'
 $VenvPython = Join-Path $Venv 'Scripts\python.exe'
 $Exe = Join-Path $Here 'dist\d200x_plugin.exe'
@@ -44,6 +47,7 @@ function Stop-Plugin {
 
 if ($Uninstall) {
     Stop-Plugin
+    if (Test-Path $LegacyDest) { Remove-Item -Recurse -Force $LegacyDest; Write-Host "Removed $LegacyDest" }
     if (Test-Path $Dest) {
         Remove-Item -Recurse -Force $Dest
         Write-Host "Removed $Dest"
@@ -106,13 +110,19 @@ if (Test-Path $VenvPython) {
 # it assumes on first launch comes from defaults.json. Keep the previous choice
 # across reinstalls unless -Model says otherwise.
 $Defaults = Join-Path $Dest 'defaults.json'
-if (-not $Model -and (Test-Path $Defaults)) {
-    try { $Model = (Get-Content $Defaults -Raw | ConvertFrom-Json).model } catch { }
+foreach ($previous in @($Defaults, (Join-Path $LegacyDest 'defaults.json'))) {
+    if (-not $Model -and (Test-Path $previous)) {
+        try { $Model = (Get-Content $previous -Raw | ConvertFrom-Json).model } catch { }
+    }
 }
 if (-not $Model) { $Model = 'd200x' }
 
 Stop-Plugin
 if (Test-Path $Dest) { Remove-Item -Recurse -Force $Dest }
+if (Test-Path $LegacyDest) {
+    Remove-Item -Recurse -Force $LegacyDest
+    Write-Host "Removed the pre-1.3.0 copy ($LegacyPlugin); its settings carry over on first start."
+}
 Copy-Item -Recurse $Src $Dest
 Get-ChildItem $Dest -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
 Copy-Item $Exe $Dest

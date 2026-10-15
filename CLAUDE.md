@@ -26,7 +26,7 @@ Remote: `git@github.com:edubox/opendeck-ulanzi-d200x.git`, branch `main`.
 ├── CLAUDE.md                         project memory; AGENTS.md is a symlink to it so opencode loads the same source
 ├── install.sh                        copies into the running OpenDeck's plugin dir
 ├── 60-ulanzi-d200x.rules             single udev rule, uaccess
-└── com.ulanzi.d200x.sdPlugin/
+└── dev.kastro5.ulanzi-d200.sdPlugin/
     ├── manifest.json                 DeviceNamespace "ul", one action
     ├── launch.sh                     flatpak-spawn --host if present, else python3
     ├── d200x_plugin.py               everything: HID, images, websocket, stats
@@ -59,8 +59,8 @@ two characters (`"ul"`).
 ## The wide screen (key 13)
 
 One global setting, `{"wideMode": "clock" | "stats" | "off"}`, stored by OpenDeck
-in `~/.config/opendeck/settings/com.ulanzi.d200x.sdPlugin.json` and edited from
-the **Wide screen** action's property inspector (`com.ulanzi.d200x.widescreen`).
+in `~/.config/opendeck/settings/dev.kastro5.ulanzi-d200.sdPlugin.json` and edited from
+the **Wide screen** action's property inspector (`dev.kastro5.ulanzi-d200.widescreen`).
 It applies whether or not that action is on key 13, so it also governs the empty
 slot. Any *other* action there wins and its icon is rendered instead.
 
@@ -97,7 +97,7 @@ OpenDeck on this machine is the **native** package (`opendeck-bin`,
 ./install.sh                                  # or --link for development
 pkill -f '^/usr/bin/opendeck'; sleep 3
 setsid nohup /usr/bin/opendeck --hide >/dev/null 2>&1 </dev/null &
-tail -f ~/.local/share/opendeck/logs/plugins/com.ulanzi.d200x.sdPlugin.log
+tail -f ~/.local/share/opendeck/logs/plugins/dev.kastro5.ulanzi-d200.sdPlugin.log
 ```
 
 A restart of OpenDeck is required for manifest changes *and* for plugin code

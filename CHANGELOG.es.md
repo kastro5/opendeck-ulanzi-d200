@@ -2,7 +2,23 @@
 
 # Registro de cambios
 
-## Sin publicar
+## 1.3.0 — 2026-10-15
+
+### Cambiado
+
+- **Nuevo identificador del plugin: `dev.kastro5.ulanzi-d200`** (antes
+  `com.ulanzi.d200x`, heredado del proyecto original y con el nombre de la propia
+  Ulanzi). Prepara el plugin para el catálogo de plugins de OpenDeck. Los
+  identificadores de dispositivo no cambian, así que perfiles y teclas siguen
+  igual. Al arrancar por primera vez, el plugin recupera los ajustes globales
+  anteriores (modelo y modo de la pantalla ancha). Los instaladores borran la
+  copia antigua; si no, quita `com.ulanzi.d200x.sdPlugin` en la pestaña Plugins
+  de OpenDeck, porque las dos reclamarían el dispositivo. Una acción *Pantalla
+  ancha* puesta en una tecla hay que volver a añadirla.
+- **El autor pasa a ser `kastro5`**; el README da crédito al proyecto original.
+- **Los zip de cada versión sirven para Windows y Linux.** El de cada modelo
+  lleva el exe de Windows y el lanzador de Linux; se llaman
+  `opendeck-ulanzi-<modelo>-v<versión>.zip`.
 
 ### Añadido
 

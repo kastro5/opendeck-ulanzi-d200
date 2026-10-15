@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Package the built plugin into per-model Windows release zips.
+"""Package the built plugin into per-model release zips (Windows and Linux in one).
 
     python scripts/package_release.py --exe dist/d200x_plugin.exe [--version 1.2.3]
 
 Writes to release/:
-    opendeck-ulanzi-<model>-windows-v<version>.zip   one per model, with the model
-                                                     preset in defaults.json
+    opendeck-ulanzi-<model>-v<version>.zip   one per model, with the model preset in
+                                             defaults.json; OpenDeck's plugin catalogue
+                                             asks which one to install
     notes.md                                         release notes, taken from
                                                      this version's CHANGELOG.md entry
 
@@ -24,11 +25,11 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PLUGIN = "com.ulanzi.d200x.sdPlugin"
+PLUGIN = "dev.kastro5.ulanzi-d200.sdPlugin"
 MODELS = ("d200h", "d200x")
 REPO = "https://github.com/kastro5/opendeck-ulanzi-d200"
-# Linux-only or build leftovers that have no business in a Windows zip.
-SKIP = {"launch.sh", "__pycache__", "defaults.json", "d200x_plugin.exe"}
+# Build leftovers, and files written per zip below.
+SKIP = {"__pycache__", "defaults.json", "d200x_plugin.exe"}
 
 
 def manifest_version() -> str:
@@ -50,19 +51,29 @@ def build_zip(model: str, version: str, exe: Path, out: Path) -> Path:
     shutil.copy2(exe, staging / exe.name)
     (staging / "defaults.json").write_text(json.dumps({"model": model}), encoding="utf-8")
 
-    archive = out / f"opendeck-ulanzi-{model}-windows-v{version}.zip"
+    archive = out / f"opendeck-ulanzi-{model}-v{version}.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(staging.rglob("*")):
-            if path.is_file():
-                # Forward slashes: some extractors mangle backslashed entries.
-                zf.write(path, path.relative_to(out / model).as_posix())
+            if not path.is_file():
+                continue
+            # Forward slashes: some extractors mangle backslashed entries.
+            name = path.relative_to(out / model).as_posix()
+            if path.suffix in (".sh", ".py"):
+                # Linux runs these: LF line endings and the executable bit, whatever
+                # the checkout this was built from did to them.
+                info = zipfile.ZipInfo(name, date_time=(2020, 1, 1, 0, 0, 0))
+                info.external_attr = 0o100755 << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(info, path.read_bytes().replace(b"\r\n", b"\n"))
+            else:
+                zf.write(path, name)
     shutil.rmtree(out / model)
     return archive
 
 
 def notes(version: str) -> str:
     rows = "\n".join(
-        f"| **{model.upper()}** | `opendeck-ulanzi-{model}-windows-v{version}.zip` |" for model in MODELS)
+        f"| **{model.upper()}** | `opendeck-ulanzi-{model}-v{version}.zip` |" for model in MODELS)
     return f"""{changelog_entry(version)}
 
 ## Download
@@ -71,7 +82,7 @@ def notes(version: str) -> str:
 |---|---|
 {rows}
 
-New install: quit Ulanzi Studio, extract the zip into `%APPDATA%\\opendeck\\plugins\\`, and restart OpenDeck. Upgrading: quit OpenDeck, extract over the existing `com.ulanzi.d200x.sdPlugin` folder, and start it again. Full instructions are in the [README]({REPO}#install-on-windows).
+Same zip for Windows and Linux. Install it from OpenDeck's plugin catalogue (pick your model when asked), or extract it into OpenDeck's `plugins` folder and restart OpenDeck. Upgrading from before 1.3.0: the plugin's folder is now `dev.kastro5.ulanzi-d200.sdPlugin`; remove the old `com.ulanzi.d200x.sdPlugin` (OpenDeck's Plugins tab), and your settings carry over. Full instructions are in the [README]({REPO}#install).
 
 Built by GitHub Actions from the tagged commit.
 """
