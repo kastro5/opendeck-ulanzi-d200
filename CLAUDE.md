@@ -28,7 +28,7 @@ Remote: `git@github.com:edubox/opendeck-ulanzi-d200x.git`, branch `main`.
 ├── 60-ulanzi-d200x.rules             single udev rule, uaccess
 └── dev.kastro5.ulanzi-d200.sdPlugin/
     ├── manifest.json                 DeviceNamespace "ul", one action
-    ├── launch.sh                     flatpak-spawn --host if present, else python3
+    ├── launch.sh                     runs d200x_plugin-linux if bundled, else python3; via flatpak-spawn --host if present
     ├── d200x_plugin.py               everything: HID, images, websocket, stats
     ├── propertyInspector/widescreen.html   the only settings UI (bilingual)
     └── assets/{icon,widescreen}.png
@@ -113,7 +113,10 @@ changes (OpenDeck does not respawn a killed plugin).
 | property inspector webserver | `http://localhost:57118/<abs-path>\|opendeck_property_inspector` |
 
 Python dependencies are **system packages**, not a venv:
-`python-hidapi python-pillow python-websockets` (Arch names).
+`python-hidapi python-pillow python-websockets` (Arch names). Release zips
+instead carry `d200x_plugin-linux`, a PyInstaller build with the pip `hidapi`
+wheel; that wheel's `hid` uses libusb, so the plugin imports its `hidraw` module
+on Linux to stay on /dev/hidraw* and the one udev rule.
 
 Protocol or event questions about OpenDeck are answered from its source, not
 from memory:

@@ -2,6 +2,19 @@
 
 # Changelog
 
+## 1.3.1 — 2026-10-15
+
+### Changed
+
+- **The Linux zip no longer needs Python.** It carries a self-contained build,
+  like the Windows exe, so installing from the catalogue or the release page
+  works without `hidapi`, `pillow` and `websockets` on the system. `launch.sh`
+  runs that build when it's there, and the system `python3` otherwise (a source
+  checkout installed with `install.sh`). The build talks to `/dev/hidraw*` as
+  before, so the same udev rule applies.
+- **The udev rule ships in the zip**, so a zip install doesn't need the
+  repository to set it up.
+
 ## 1.3.0 — 2026-10-15
 
 ### Changed

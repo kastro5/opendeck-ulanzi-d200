@@ -129,6 +129,29 @@ vuelvas a indicar.
 
 ## Instalación en Linux
 
+### Instalación rápida (descarga)
+
+No necesitas Python: el zip lleva una compilación de Linux autónoma.
+
+1. De la [última versión](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest),
+   descarga el zip de tu modelo y descomprímelo en la carpeta de plugins de
+   OpenDeck: `~/.config/opendeck/plugins/`, o
+   `~/.var/app/me.amankhanna.opendeck/config/opendeck/plugins/` si usas el
+   Flatpak.
+2. **Añade la regla udev.** Por defecto `/dev/hidraw*` solo es accesible para
+   root, así que el plugin no ve el deck hasta que la regla le da acceso. La
+   regla está en la carpeta del plugin:
+
+   ```sh
+   sudo cp ~/.config/opendeck/plugins/dev.kastro5.ulanzi-d200.sdPlugin/60-ulanzi-d200x.rules /etc/udev/rules.d/
+   sudo udevadm control --reload-rules && sudo udevadm trigger
+   # después desenchufa y vuelve a enchufar el deck
+   ```
+
+3. Reinicia OpenDeck.
+
+### Desde el código fuente
+
 Python 3 con tres paquetes:
 
 ```sh
@@ -141,8 +164,7 @@ sudo apt install python3-hid python3-pil python3-websockets
 Si OpenDeck es la versión Flatpak, instálalos **en el sistema anfitrión**. El
 plugin se relanza allí con `flatpak-spawn --host`.
 
-**Hace falta una regla udev.** Por defecto `/dev/hidraw*` solo es accesible para
-root, así que el plugin no ve el deck hasta que la regla le da acceso:
+Después añade la regla udev e instala:
 
 ```sh
 sudo cp 60-ulanzi-d200x.rules /etc/udev/rules.d/
@@ -154,9 +176,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ./install.sh --uninstall
 ```
 
-Después reinicia OpenDeck. En lugar de `install.sh` también puedes descomprimir
-el zip de tu modelo de la [última versión](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest)
-en `~/.config/opendeck/plugins/`; también lleva el lanzador de Linux.
+Después reinicia OpenDeck.
+
+### Notas
 
 La regla usa `TAG+="uaccess"`, que da acceso al usuario con sesión iniciada, en
 vez del `MODE="0666"` que sugieren muchas guías y que deja el dispositivo
@@ -164,7 +186,8 @@ escribible por todos. Sin systemd-logind, añade `GROUP="input"` a la regla y
 únete a ese grupo. `install.sh` comprueba que el nodo del dispositivo sea
 escribible y te avisa si no lo es.
 
-En Linux, el modelo se elige desde OpenDeck, como se explica a continuación.
+El zip de la versión ya trae el modelo elegido. Con `install.sh`, elígelo desde OpenDeck,
+como se explica a continuación.
 
 ## Elegir el modelo
 

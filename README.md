@@ -124,6 +124,29 @@ device selector at the top left, as **Ulanzi D200H** or **Ulanzi D200X**.
 
 ## Install on Linux
 
+### Quick install (download)
+
+No Python needed: the zip carries a self-contained Linux build.
+
+1. From the [latest release](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest),
+   download the zip for your model and extract it into OpenDeck's plugins
+   folder: `~/.config/opendeck/plugins/`, or
+   `~/.var/app/me.amankhanna.opendeck/config/opendeck/plugins/` for the
+   Flatpak.
+2. **Add the udev rule.** By default `/dev/hidraw*` is root-only, so the plugin
+   can't see the deck until the rule grants access. The rule is in the plugin
+   folder:
+
+   ```sh
+   sudo cp ~/.config/opendeck/plugins/dev.kastro5.ulanzi-d200.sdPlugin/60-ulanzi-d200x.rules /etc/udev/rules.d/
+   sudo udevadm control --reload-rules && sudo udevadm trigger
+   # then unplug and replug the deck
+   ```
+
+3. Restart OpenDeck.
+
+### From source
+
 Python 3 with three packages:
 
 ```sh
@@ -136,8 +159,7 @@ sudo apt install python3-hid python3-pil python3-websockets
 If OpenDeck runs as a Flatpak, install these **on the host**. The plugin
 re-launches itself there with `flatpak-spawn --host`.
 
-**A udev rule is required.** By default `/dev/hidraw*` is root-only, so the
-plugin can't see the deck until the rule grants access:
+Then add the udev rule and install:
 
 ```sh
 sudo cp 60-ulanzi-d200x.rules /etc/udev/rules.d/
@@ -149,16 +171,17 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ./install.sh --uninstall
 ```
 
-Then restart OpenDeck. Instead of `install.sh` you can also extract the zip for
-your model from the [latest release](https://github.com/kastro5/opendeck-ulanzi-d200/releases/latest)
-into `~/.config/opendeck/plugins/`; it contains the Linux launcher too.
+Then restart OpenDeck.
+
+### Notes
 
 The rule uses `TAG+="uaccess"`, which gives the logged-in user access, rather
 than the world-writable `MODE="0666"` many guides suggest. Without
 systemd-logind, add `GROUP="input"` to the rule and join that group.
 `install.sh` checks that the device node is writable and tells you if it isn't.
 
-On Linux, choose the model from OpenDeck, as described below.
+The release zip already has the model set. With `install.sh`, choose it from OpenDeck, as
+described below.
 
 ## Choosing the model
 

@@ -50,7 +50,17 @@ from base64 import b64decode
 from typing import Dict, List, Optional, Tuple
 
 try:
-    import hid
+    # The pip hidapi wheel's `hid` goes through libusb on Linux, which needs a USB
+    # udev rule and detaches the kernel driver; its `hidraw` twin has the same API
+    # over /dev/hidraw*, like the distro packages' `hid`. The frozen Linux build
+    # ships the wheel, so prefer `hidraw` there.
+    if sys.platform.startswith("linux"):
+        try:
+            import hidraw as hid
+        except ImportError:
+            import hid
+    else:
+        import hid
 except ImportError:  # pragma: no cover - reported at runtime
     hid = None
 

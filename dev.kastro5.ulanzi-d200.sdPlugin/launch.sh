@@ -10,11 +10,21 @@
 # plugin on the host instead.
 set -euo pipefail
 
+#
+# Release zips carry a self-contained build (d200x_plugin-linux) that needs no
+# Python packages; a source checkout (install.sh --link) runs the script with the
+# system python3 and its hidapi/pillow/websockets.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN="$SCRIPT_DIR/d200x_plugin.py"
+BINARY="$SCRIPT_DIR/d200x_plugin-linux"
+
+if [ -x "$BINARY" ]; then
+	set -- "$BINARY" "$@"
+else
+	set -- python3 "$SCRIPT_DIR/d200x_plugin.py" "$@"
+fi
 
 if command -v flatpak-spawn >/dev/null 2>&1; then
-	exec flatpak-spawn --host python3 "$PLUGIN" "$@"
+	exec flatpak-spawn --host "$@"
 else
-	exec python3 "$PLUGIN" "$@"
+	exec "$@"
 fi

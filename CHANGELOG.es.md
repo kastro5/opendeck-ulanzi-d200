@@ -2,6 +2,19 @@
 
 # Registro de cambios
 
+## 1.3.1 — 2026-10-15
+
+### Cambiado
+
+- **El zip de Linux ya no necesita Python.** Lleva una compilación autónoma,
+  como el exe de Windows, así que instalar desde el catálogo o desde la página
+  de versiones funciona sin `hidapi`, `pillow` ni `websockets` en el sistema.
+  `launch.sh` ejecuta esa compilación si está, y si no el `python3` del sistema
+  (una copia del código instalada con `install.sh`). La compilación usa
+  `/dev/hidraw*` como antes, así que sirve la misma regla udev.
+- **La regla udev va dentro del zip**, así que una instalación desde el zip no
+  necesita el repositorio para configurarla.
+
 ## 1.3.0 — 2026-10-15
 
 ### Cambiado
