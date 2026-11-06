@@ -116,7 +116,7 @@ WINDOW_MODE_IMAGE = 2
 
 # What the wide screen shows when no other action occupies it. Stored in the
 # plugin's global settings and edited from the "Wide screen" property inspector.
-ACTION_WIDE_SCREEN = "dev.kastro5.ulanzi-d200.widescreen"
+ACTION_WIDE_SCREEN = "io.github.kastro5.ulanzi-d200.widescreen"
 WIDE_SETTING = "wideMode"
 WIDE_MODES = {
     "clock": WINDOW_MODE_CLOCK,   # the firmware's own clock
@@ -242,25 +242,30 @@ def default_model() -> str:
 
 MODEL_DEFAULT = default_model()
 
-# Before 1.3.0 the plugin used the upstream bundle ID; OpenDeck keeps global
+# Earlier bundle IDs, newest first: the upstream one before 1.3.0, then
+# dev.kastro5.* until 1.4.0 (a domain we don't own). OpenDeck keeps global
 # settings per bundle ID, so the first start under the new ID carries them over.
-LEGACY_PLUGIN = "com.ulanzi.d200x.sdPlugin"
+LEGACY_PLUGINS = ("dev.kastro5.ulanzi-d200.sdPlugin", "com.ulanzi.d200x.sdPlugin")
 
 
-def legacy_settings() -> dict:
-    """The old plugin's global settings, from OpenDeck's config dir (<config>/plugins/<us>)."""
+def legacy_settings() -> tuple[str, dict]:
+    """The newest old plugin's global settings, from OpenDeck's config dir (<config>/plugins/<us>)."""
     config = os.path.dirname(os.path.dirname(plugin_dir()))
-    try:
-        with open(os.path.join(config, "settings", LEGACY_PLUGIN + ".json"), encoding="utf-8") as handle:
-            settings = json.load(handle)
-    except (OSError, ValueError):
-        return {}
-    return settings if isinstance(settings, dict) else {}
+    for legacy in LEGACY_PLUGINS:
+        try:
+            with open(os.path.join(config, "settings", legacy + ".json"), encoding="utf-8") as handle:
+                settings = json.load(handle)
+        except (OSError, ValueError):
+            continue
+        if isinstance(settings, dict) and settings:
+            return legacy, settings
+    return "", {}
 
 
-def legacy_plugin_installed() -> bool:
-    """The old copy would claim the same USB device; both cannot run."""
-    return os.path.isdir(os.path.join(os.path.dirname(plugin_dir()), LEGACY_PLUGIN))
+def legacy_plugins_installed() -> list[str]:
+    """Old copies would claim the same USB device; they cannot run alongside."""
+    plugins = os.path.dirname(plugin_dir())
+    return [legacy for legacy in LEGACY_PLUGINS if os.path.isdir(os.path.join(plugins, legacy))]
 
 # --------------------------------------------------------------------------- #
 # Timing
@@ -849,9 +854,9 @@ class D200XPlugin:
 
     def _on_global_settings(self, settings: dict) -> None:
         if not settings and not self._settings_seen:
-            settings = legacy_settings()
+            legacy, settings = legacy_settings()
             if settings:
-                logger.info("Carried over the settings of %s", LEGACY_PLUGIN)
+                logger.info("Carried over the settings of %s", legacy)
                 self._loop.create_task(self._send(
                     {"event": "setGlobalSettings", "context": self._uuid, "payload": settings}))
         model = MODELS.get(str(settings.get(MODEL_SETTING, MODEL_DEFAULT)).lower(),
@@ -1100,9 +1105,9 @@ def main() -> int:
                          "sudo pacman -S python-hidapi python-pillow python-websockets")
         return 1
 
-    if legacy_plugin_installed():
-        logger.warning("The pre-1.3.0 copy of this plugin (%s) is still installed and claims the same "
-                       "deck; remove it from OpenDeck's Plugins tab and restart OpenDeck.", LEGACY_PLUGIN)
+    for legacy in legacy_plugins_installed():
+        logger.warning("An older copy of this plugin (%s) is still installed and claims the same "
+                       "deck; remove it from OpenDeck's Plugins tab and restart OpenDeck.", legacy)
 
     args = parse_args(sys.argv[1:])
     plugin = D200XPlugin(args.port, args.uuid, args.register_event)

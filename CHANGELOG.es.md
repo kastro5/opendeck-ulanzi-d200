@@ -2,6 +2,20 @@
 
 # Registro de cambios
 
+## 1.4.0 — 2026-11-06
+
+### Cambiado
+
+- **Nuevo identificador de plugin: `io.github.kastro5.ulanzi-d200`.** El de
+  `dev.kastro5` implicaba un dominio que este proyecto no tiene;
+  `io.github.kastro5` va ligado a la cuenta de GitHub. La carpeta del plugin es
+  ahora `io.github.kastro5.ulanzi-d200.sdPlugin`. Quita la antigua (pestaña
+  Plugins de OpenDeck), porque las dos reclamarían el deck; los instaladores lo
+  hacen solos. Los ajustes de modelo y de pantalla ancha se recuperan desde
+  cualquiera de los identificadores anteriores y las teclas se quedan como
+  estaban, pero una acción **Wide screen** que tuvieras puesta hay que volver a
+  ponerla.
+
 ## 1.3.1 — 2026-10-15
 
 ### Cambiado

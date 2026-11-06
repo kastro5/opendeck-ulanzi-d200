@@ -26,7 +26,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PLUGIN = "dev.kastro5.ulanzi-d200.sdPlugin"
+PLUGIN = "io.github.kastro5.ulanzi-d200.sdPlugin"
 MODELS = ("d200h", "d200x")
 REPO = "https://github.com/kastro5/opendeck-ulanzi-d200"
 # The self-contained Linux build, which launch.sh runs when it's there.
@@ -91,7 +91,7 @@ def notes(version: str) -> str:
 |---|---|
 {rows}
 
-Same zip for Windows and Linux, self-contained on both (no Python needed). Install it from OpenDeck's plugin catalogue (pick your model when asked), or extract it into OpenDeck's `plugins` folder and restart OpenDeck. Upgrading from before 1.3.0: the plugin's folder is now `dev.kastro5.ulanzi-d200.sdPlugin`; remove the old `com.ulanzi.d200x.sdPlugin` (OpenDeck's Plugins tab), and your settings carry over. Full instructions are in the [README]({REPO}#install).
+Same zip for Windows and Linux, self-contained on both (no Python needed). Install it from OpenDeck's plugin catalogue (pick your model when asked), or extract it into OpenDeck's `plugins` folder and restart OpenDeck. Upgrading from before 1.4.0: the plugin's folder is now `io.github.kastro5.ulanzi-d200.sdPlugin`; remove the old `dev.kastro5.ulanzi-d200.sdPlugin` or `com.ulanzi.d200x.sdPlugin` (OpenDeck's Plugins tab), and your settings carry over. A Wide screen action you had placed has to be placed again. Full instructions are in the [README]({REPO}#install).
 
 Built by GitHub Actions from the tagged commit.
 """

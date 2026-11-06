@@ -24,14 +24,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$Plugin = 'dev.kastro5.ulanzi-d200.sdPlugin'
-# Before 1.3.0 the plugin lived under the upstream bundle ID; both would claim the deck.
-$LegacyPlugin = 'com.ulanzi.d200x.sdPlugin'
+$Plugin = 'io.github.kastro5.ulanzi-d200.sdPlugin'
+# Earlier bundle IDs (dev.kastro5.* until 1.4.0, the upstream one before 1.3.0), newest
+# first; an old copy would claim the deck too.
+$LegacyPlugins = @('dev.kastro5.ulanzi-d200.sdPlugin', 'com.ulanzi.d200x.sdPlugin')
 $Here = $PSScriptRoot
 $Src = Join-Path $Here $Plugin
 $DestDir = Join-Path $env:APPDATA 'opendeck\plugins'
 $Dest = Join-Path $DestDir $Plugin
-$LegacyDest = Join-Path $DestDir $LegacyPlugin
+$LegacyDests = @($LegacyPlugins | ForEach-Object { Join-Path $DestDir $_ })
 $Venv = Join-Path $Here '.venv'
 $VenvPython = Join-Path $Venv 'Scripts\python.exe'
 $Exe = Join-Path $Here 'dist\d200x_plugin.exe'
@@ -47,7 +48,7 @@ function Stop-Plugin {
 
 if ($Uninstall) {
     Stop-Plugin
-    if (Test-Path $LegacyDest) { Remove-Item -Recurse -Force $LegacyDest; Write-Host "Removed $LegacyDest" }
+    foreach ($old in $LegacyDests) { if (Test-Path $old) { Remove-Item -Recurse -Force $old; Write-Host "Removed $old" } }
     if (Test-Path $Dest) {
         Remove-Item -Recurse -Force $Dest
         Write-Host "Removed $Dest"
@@ -110,7 +111,7 @@ if (Test-Path $VenvPython) {
 # it assumes on first launch comes from defaults.json. Keep the previous choice
 # across reinstalls unless -Model says otherwise.
 $Defaults = Join-Path $Dest 'defaults.json'
-foreach ($previous in @($Defaults, (Join-Path $LegacyDest 'defaults.json'))) {
+foreach ($previous in @($Defaults) + @($LegacyDests | ForEach-Object { Join-Path $_ 'defaults.json' })) {
     if (-not $Model -and (Test-Path $previous)) {
         try { $Model = (Get-Content $previous -Raw | ConvertFrom-Json).model } catch { }
     }
@@ -119,9 +120,11 @@ if (-not $Model) { $Model = 'd200x' }
 
 Stop-Plugin
 if (Test-Path $Dest) { Remove-Item -Recurse -Force $Dest }
-if (Test-Path $LegacyDest) {
-    Remove-Item -Recurse -Force $LegacyDest
-    Write-Host "Removed the pre-1.3.0 copy ($LegacyPlugin); its settings carry over on first start."
+foreach ($old in $LegacyDests) {
+    if (Test-Path $old) {
+        Remove-Item -Recurse -Force $old
+        Write-Host "Removed the older copy ($(Split-Path $old -Leaf)); its settings carry over on first start."
+    }
 }
 Copy-Item -Recurse $Src $Dest
 Get-ChildItem $Dest -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force

@@ -2,6 +2,18 @@
 
 # Changelog
 
+## 1.4.0 — 2026-11-06
+
+### Changed
+
+- **New plugin ID: `io.github.kastro5.ulanzi-d200`.** The `dev.kastro5` one
+  implied a domain this project doesn't own; `io.github.kastro5` is tied to the
+  GitHub account. The plugin's folder is now `io.github.kastro5.ulanzi-d200.sdPlugin`.
+  Remove the old one (OpenDeck's Plugins tab), since both would claim the deck;
+  the installers do it for you. The model and wide screen settings carry over
+  from either earlier ID and keys stay as they are, but a **Wide screen** action
+  you had placed has to be placed again.
+
 ## 1.3.1 — 2026-10-15
 
 ### Changed

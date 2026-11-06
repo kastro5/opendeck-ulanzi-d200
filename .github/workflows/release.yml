@@ -47,7 +47,7 @@ jobs:
           python -m PyInstaller --noconfirm --clean --onefile --log-level WARN
           --name "${{ matrix.name }}" --hidden-import hidraw
           --distpath dist --workpath build --specpath build
-          dev.kastro5.ulanzi-d200.sdPlugin/d200x_plugin.py
+          io.github.kastro5.ulanzi-d200.sdPlugin/d200x_plugin.py
 
       - name: Smoke test
         # With nothing listening on the port, the plugin must get as far as the
